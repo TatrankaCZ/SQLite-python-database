@@ -9,7 +9,7 @@ async def main() -> None:
     post = await db.post.create(
         {
             'title': 'Prisma test',
-            'desc': 'SQLite database test',
+            #'desc': 'SQLite database test',
             'published': True,
         }
     )
