@@ -1,33 +1,61 @@
 # Server
+from prisma import Prisma
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler
 
 import random
 from urllib.parse import parse_qs
-import uuid
+# https://docs.aiohttp.org/en/stable/
+from aiohttp import web
+
+MIN_NUMBER = 0
+MAX_NUMBER = 10
+db = Prisma()
+
+
+async def on_startup(app):
+    await db.connect()
+
+
+async def create_room(request):
+    hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
+
+    room = await db.room.create({
+        'guess_number': hadane_cislo,
+        'min_number': MIN_NUMBER,
+        'max_number': MAX_NUMBER
+    })
+    return web.Response(text=str(room.id))
+
+
+async def list_rooms(request):
+    rooms = await db.room.find_many()
+    out = []
+    for room in rooms:
+        out.append({
+            "id": room.id,
+            "min_number": room.min_number,
+            "max_number": room.max_number
+        })
+    return web.json_response(out)
+
+
+async def guess_number(request):
+    number = request.rel_url.query["number"]
+    room_id = request.rel_url.query["room_id"]
+    # TODO vyber z databaze pokoj dle room_id
+    # TODO porovnej prijate cislo s generovanym
+    # TODO a vrat odpoved
+    return web.Response(text=str(number))
 
 class MyServer(BaseHTTPRequestHandler):
-    X = 0
-    Y = 10
 
     mistnosti = {}
 
-    def do_GET(self):
+    async def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        print(self.path)
-        if self.path == "/favicon.ico":
-            return
-        if self.path == "/create":
-            hadane_cislo = random.randrange(self.X, self.Y)
-            id_mistostni = str(uuid.uuid4())
-            self.mistnosti[id_mistostni] = hadane_cislo
-            self.wfile.write(bytes(id_mistostni, "utf-8"))
-
-        if self.path == "/list":
-            for key in self.mistnosti:
-                self.wfile.write(bytes(f"{key}\n", "utf-8"))
 
         if self.path.startswith("/guess"):
             print("jsme v guess")
@@ -51,15 +79,14 @@ class MyServer(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    webServer = HTTPServer(("localhost", 8001), MyServer)
-    print("Server started http://%s:%s" % ("localhost", 8001))
-
-    try:
-        webServer.serve_forever()
-    except KeyboardInterrupt:
-        pass
-
-    webServer.server_close()
+    app = web.Application()
+    app.on_startup.append(on_startup)
+    app.add_routes([
+        web.get('/create', create_room),
+        web.get("/list", list_rooms),
+        web.get('/guess', guess_number)
+    ])
+    web.run_app(app)
     print("Server stopped.")
 
 
