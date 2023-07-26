@@ -3,8 +3,6 @@ This a server for number guessing game
 """
 # Server
 import random
-from http.server import BaseHTTPRequestHandler
-from urllib.parse import parse_qs
 
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
@@ -15,11 +13,16 @@ MAX_NUMBER = 10
 db = Prisma()
 
 
-async def on_startup(app):
+async def on_startup(_):
+    """
+    Connects to database
+    :param app:
+    :return:
+    """
     await db.connect()
 
 
-async def create_room(request):
+async def create_room():
     hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
 
     room = await db.room.create(
@@ -32,7 +35,7 @@ async def create_room(request):
     return web.Response(text=str(room.id))
 
 
-async def list_rooms(request):
+async def list_rooms():
     rooms = await db.room.find_many()
     out = []
     for room in rooms:
@@ -48,6 +51,7 @@ async def list_rooms(request):
 
 async def guess_number(request):
     number = request.rel_url.query["number"]
+    # pylint: disable=unused-variable
     room_id = request.rel_url.query["room_id"]
     # pylint:disable=fixme
     # TODO vyber z databaze pokoj dle room_id
@@ -56,30 +60,30 @@ async def guess_number(request):
     return web.Response(text=str(number))
 
 
-class MyServer(BaseHTTPRequestHandler):
-    mistnosti = {}
-
-    async def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-
-        if self.path.startswith("/guess"):
-            print("jsme v guess")
-            params = parse_qs(self.path[7:])
-            print(params)
-            print(params["number"])
-            print(params["room_id"])
-            number = int(params["number"][0])
-            room_id = params["room_id"][0]
-
-            if number > self.mistnosti[room_id]:
-                self.wfile.write(bytes("MENSI", "utf-8"))
-            elif number < self.mistnosti[room_id]:
-                self.wfile.write(bytes("VETSI", "utf-8"))
-            else:
-                self.wfile.write(bytes("UHADNUTO", "utf-8"))
-                MyServer.hadane_cislo = random.randrange(self.X, self.Y)
+# class MyServer(BaseHTTPRequestHandler):
+#     mistnosti = {}
+#
+#     async def do_GET(self):
+#         self.send_response(200)
+#         self.send_header("Content-type", "text/html")
+#         self.end_headers()
+#
+#         if self.path.startswith("/guess"):
+#             print("jsme v guess")
+#             params = parse_qs(self.path[7:])
+#             print(params)
+#             print(params["number"])
+#             print(params["room_id"])
+#             number = int(params["number"][0])
+#             room_id = params["room_id"][0]
+#
+#             if number > self.mistnosti[room_id]:
+#                 self.wfile.write(bytes("MENSI", "utf-8"))
+#             elif number < self.mistnosti[room_id]:
+#                 self.wfile.write(bytes("VETSI", "utf-8"))
+#             else:
+#                 self.wfile.write(bytes("UHADNUTO", "utf-8"))
+#                 MyServer.hadane_cislo = random.randrange(self.X, self.Y)
 
 
 if __name__ == "__main__":
