@@ -1,12 +1,14 @@
+"""
+This a server for number guessing game
+"""
 # Server
-from prisma import Prisma
-
-from http.server import BaseHTTPRequestHandler
-
 import random
+from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs
+
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
+from prisma import Prisma
 
 MIN_NUMBER = 0
 MAX_NUMBER = 10
@@ -20,11 +22,13 @@ async def on_startup(app):
 async def create_room(request):
     hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
 
-    room = await db.room.create({
-        'guess_number': hadane_cislo,
-        'min_number': MIN_NUMBER,
-        'max_number': MAX_NUMBER
-    })
+    room = await db.room.create(
+        {
+            "guess_number": hadane_cislo,
+            "min_number": MIN_NUMBER,
+            "max_number": MAX_NUMBER,
+        }
+    )
     return web.Response(text=str(room.id))
 
 
@@ -32,24 +36,27 @@ async def list_rooms(request):
     rooms = await db.room.find_many()
     out = []
     for room in rooms:
-        out.append({
-            "id": room.id,
-            "min_number": room.min_number,
-            "max_number": room.max_number
-        })
+        out.append(
+            {
+                "id": room.id,
+                "min_number": room.min_number,
+                "max_number": room.max_number,
+            }
+        )
     return web.json_response(out)
 
 
 async def guess_number(request):
     number = request.rel_url.query["number"]
     room_id = request.rel_url.query["room_id"]
+    # pylint:disable=fixme
     # TODO vyber z databaze pokoj dle room_id
     # TODO porovnej prijate cislo s generovanym
     # TODO a vrat odpoved
     return web.Response(text=str(number))
 
-class MyServer(BaseHTTPRequestHandler):
 
+class MyServer(BaseHTTPRequestHandler):
     mistnosti = {}
 
     async def do_GET(self):
@@ -75,18 +82,15 @@ class MyServer(BaseHTTPRequestHandler):
                 MyServer.hadane_cislo = random.randrange(self.X, self.Y)
 
 
-
-
-
 if __name__ == "__main__":
     app = web.Application()
     app.on_startup.append(on_startup)
-    app.add_routes([
-        web.get('/create', create_room),
-        web.get("/list", list_rooms),
-        web.get('/guess', guess_number)
-    ])
+    app.add_routes(
+        [
+            web.get("/create", create_room),
+            web.get("/list", list_rooms),
+            web.get("/guess", guess_number),
+        ]
+    )
     web.run_app(app)
     print("Server stopped.")
-
-
