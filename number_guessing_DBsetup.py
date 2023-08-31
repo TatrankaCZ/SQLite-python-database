@@ -1,10 +1,12 @@
 import mysql.connector
 
-db = mysql.connector.connect(
-  host="localhost",
-  user="admin",
-  password="admin"
-)
+db = mysql.connector.connect(**{
+  'user': 'admin',
+  'password': 'admin',
+  'host': '127.0.0.1',
+  'port': '3306',
+  'database': 'numberguessingdb'
+})
 
 cursor = db.cursor()
 

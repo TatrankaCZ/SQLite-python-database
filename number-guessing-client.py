@@ -272,23 +272,20 @@ class Widget(QWidget):
         #self.MainLayout.setLayout(self.WSWidget, self.MMWidget)
         
     def roomgen(self):
-        parse = get_html("http://localhost:8080/create")
+        parse = get_html("http://localhost:8001/create")
         room_number = len(self.rooms) + 1
         room_name = f"mistnost {room_number}"
         self.rooms[room_name] = {}
         self.rooms[room_name]["ID"] = parse.text
         self.rooms[room_name]["OUTPUT"] = room_name + "\nvysledek"
-        self.rooms[room_name]["SCORE"] = 100
         item = QListWidgetItem(room_name)
         item.setTextAlignment(Qt.AlignCenter)
         self.room_list_screen.menu_widget.addItem(item)
 
     def guess(self):
         guessed_number = self.GFLayout.line_edit.text()
-        score = self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["SCORE"]
-        parse = get_html(f"http://localhost:8080/guess?room_id={self.selected_room}&number={guessed_number}&score={score}")
+        parse = get_html(f"http://localhost:8001/guess?room_id={self.selected_room}&number={guessed_number}")
         print("pressed")
-        self.GFLayout.line_edit.setText("")
         current_text = self.GFLayout.text_widget.text()
         # if parse.text == "MENSI":
         #    msg = "Hledane cislo je mensi"
@@ -296,22 +293,19 @@ class Widget(QWidget):
         #    msg = "Hledane cislo je vetsi"
         # else:
         #    ...
-        match parse.text.split(" ")[0]:
+        match parse.text:
             case "VETSI":
                 msg = "Zadane cislo je vetsi"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
-                self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["SCORE"] = int(parse.text.split(" ")[1])
             case "MENSI":
                 msg = "Zadane cislo je mensi"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
-                self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["SCORE"] = int(parse.text.split(" ")[1])
             case "UHADNUTO":
                 msg = "Uhodl jsi cislo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
-                self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["SCORE"] = int(parse.text.split(" ")[1])
                 QCoreApplication.processEvents()
                 self.room_list_screen.menu_widget.takeItem(self.room_list_screen.menu_widget.currentRow())
                 time.sleep(5)
@@ -326,11 +320,9 @@ class Widget(QWidget):
     def on_selected(self, item):
         room_name = item.text()
         room_id = self.rooms[room_name]["ID"]
-        room_score = self.rooms[room_name]["SCORE"]
         self.GFLayout.text_widget.setText(self.rooms[room_name]["OUTPUT"])
         self.selected_room = room_id
         self.selected_room_name = room_name
-        self.selected_room_score = room_score
         #self.main_widget.setVisible(True)
         self.RoomMove6()
 
