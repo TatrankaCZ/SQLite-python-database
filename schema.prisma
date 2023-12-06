@@ -13,13 +13,12 @@ generator client {
 generator py {
   provider             = "prisma-client-py"
   recursive_type_depth = 5
+  output = "./client"
 }
 
 
 model Room {
   id        Int     @id @default(autoincrement())
   guess_number Int
-  min_number Int
-  max_number Int 
+  score Int
 }
-
