@@ -272,7 +272,7 @@ class Widget(QWidget):
         #self.MainLayout.setLayout(self.WSWidget, self.MMWidget)
         
     def roomgen(self):
-        parse = get_html("http://localhost:8001/create")
+        parse = get_html("http://localhost:8080/create")
         room_number = len(self.rooms) + 1
         room_name = f"mistnost {room_number}"
         self.rooms[room_name] = {}
@@ -284,7 +284,7 @@ class Widget(QWidget):
 
     def guess(self):
         guessed_number = self.GFLayout.line_edit.text()
-        parse = get_html(f"http://localhost:8001/guess?room_id={self.selected_room}&number={guessed_number}")
+        parse = get_html(f"http://localhost:8080/guess?room_id={self.selected_room}&number={guessed_number}")
         print("pressed")
         current_text = self.GFLayout.text_widget.text()
         # if parse.text == "MENSI":
@@ -312,6 +312,10 @@ class Widget(QWidget):
                 self.RoomMove5()
                 #self.main_widget.setVisible(False)
                 # self.text_widget.setText("output")
+            case "NaN":
+                msg = f"\"{guessed_number}\" neni cislo"
+                self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
+                self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
 
         # self.text_widget.setText(f"{current_text}\n{msg}")
 
