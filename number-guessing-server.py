@@ -1,5 +1,5 @@
 # Server
-from prisma import Prisma
+from client import *
 
 from http.server import BaseHTTPRequestHandler
 
@@ -22,8 +22,9 @@ async def create_room(request):
 
     room = await db.room.create({
         'guess_number': hadane_cislo,
-        'min_number': MIN_NUMBER,
-        'max_number': MAX_NUMBER
+        'score': 10
+        
+    
     })
     return web.Response(text=str(room.id))
 
@@ -34,8 +35,8 @@ async def list_rooms(request):
     for room in rooms:
         out.append({
             "id": room.id,
-            "min_number": room.min_number,
-            "max_number": room.max_number
+            'guess_number': room.guess_number,
+            "score": room.score
         })
     return web.json_response(out)
 
@@ -43,10 +44,21 @@ async def list_rooms(request):
 async def guess_number(request):
     number = request.rel_url.query["number"]
     room_id = request.rel_url.query["room_id"]
-    # TODO vyber z databaze pokoj dle room_id
-    # TODO porovnej prijate cislo s generovanym
-    # TODO a vrat odpoved
-    return web.Response(text=str(number))
+    answer = ""
+    room = await db.room.find_unique(where={"id": int(room_id)})
+    try:
+        if int(number) == room.guess_number:
+            answer = "UHADNUTO"
+            
+        elif int(number) > room.guess_number:
+            answer = "VETSI"
+            
+        else:
+            answer = "MENSI"
+    except:
+        answer = "NaN"
+    
+    return web.Response(text=answer)
 
 class MyServer(BaseHTTPRequestHandler):
 
@@ -88,5 +100,3 @@ if __name__ == "__main__":
     ])
     web.run_app(app)
     print("Server stopped.")
-
-
