@@ -18,14 +18,17 @@ async def on_startup(app):
     await db.connect()
 
 
+async def on_cleanup(app):
+    await db.disconnect()
+
+
 async def create_room(request):
     hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
 
     room = await db.room.create({
         'guess_number': hadane_cislo,
         'score': 10
-        
-    
+
     })
     return web.Response(text=str(room.id))
 
@@ -50,19 +53,19 @@ async def guess_number(request):
     try:
         if int(number) == room.guess_number:
             answer = "UHADNUTO"
-            
+
         elif int(number) > room.guess_number:
             answer = "VETSI"
-            
+
         else:
             answer = "MENSI"
     except:
         answer = "NaN"
-    
+
     return web.Response(text=answer)
 
-class MyServer(BaseHTTPRequestHandler):
 
+class MyServer(BaseHTTPRequestHandler):
     mistnosti = {}
 
     async def do_GET(self):
@@ -86,9 +89,6 @@ class MyServer(BaseHTTPRequestHandler):
             else:
                 self.wfile.write(bytes("UHADNUTO", "utf-8"))
                 MyServer.hadane_cislo = random.randrange(self.X, self.Y)
-
-
-
 
 
 if __name__ == "__main__":
