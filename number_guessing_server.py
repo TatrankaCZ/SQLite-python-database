@@ -1,5 +1,4 @@
 # Server
-from client import *
 
 from http.server import BaseHTTPRequestHandler
 
@@ -7,6 +6,8 @@ import random
 from urllib.parse import parse_qs
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
+
+from client import Prisma
 
 MIN_NUMBER = 0
 MAX_NUMBER = 10
