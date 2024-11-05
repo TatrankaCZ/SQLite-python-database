@@ -70,6 +70,10 @@ pytest-aiohttp = "^1.0.5"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
+testpaths = [
+    "tests",
+]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
