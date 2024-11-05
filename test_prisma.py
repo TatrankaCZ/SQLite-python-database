@@ -20,7 +20,7 @@ async def app():
     return app
 
 @pytest.fixture
-async def cli(event_loop, aiohttp_client, app):
+async def cli(aiohttp_client, app):
     return await aiohttp_client(app)
 
 
