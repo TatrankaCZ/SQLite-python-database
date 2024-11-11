@@ -1,4 +1,5 @@
 # Server
+from client import *
 
 from http.server import BaseHTTPRequestHandler
 
@@ -7,8 +8,6 @@ from urllib.parse import parse_qs
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
 
-from client import Prisma
-
 MIN_NUMBER = 0
 MAX_NUMBER = 10
 db = Prisma()
@@ -16,10 +15,9 @@ db = Prisma()
 
 async def on_startup(app):
     await db.connect()
-
-
+    
 async def on_cleanup(app):
-    await db.disconnect()
+    await db.connect()
 
 
 async def create_room(request):
@@ -28,7 +26,8 @@ async def create_room(request):
     room = await db.room.create({
         'guess_number': hadane_cislo,
         'score': 10
-
+        
+    
     })
     return web.Response(text=str(room.id))
 
@@ -53,19 +52,19 @@ async def guess_number(request):
     try:
         if int(number) == room.guess_number:
             answer = "UHADNUTO"
-
+            
         elif int(number) > room.guess_number:
             answer = "VETSI"
-
+            
         else:
             answer = "MENSI"
     except:
         answer = "NaN"
-
+    
     return web.Response(text=answer)
 
-
 class MyServer(BaseHTTPRequestHandler):
+
     mistnosti = {}
 
     async def do_GET(self):
@@ -89,6 +88,9 @@ class MyServer(BaseHTTPRequestHandler):
             else:
                 self.wfile.write(bytes("UHADNUTO", "utf-8"))
                 MyServer.hadane_cislo = random.randrange(self.X, self.Y)
+
+
+
 
 
 if __name__ == "__main__":
