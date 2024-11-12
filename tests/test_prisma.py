@@ -3,12 +3,6 @@ import pytest
 from aiohttp import web
 from number_guessing_server import create_room, list_rooms, guess_number, on_startup, on_cleanup
 
-app = web.Application()
-app.router.add_get('/create', create_room)
-app.router.add_get('/list', list_rooms)
-app.router.add_get('/guess', guess_number)
-app.on_startup.append(on_startup)
-
 
 @pytest.fixture
 async def app():

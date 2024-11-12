@@ -1,5 +1,5 @@
 # Server
-from client import *
+from client import Prisma
 
 from http.server import BaseHTTPRequestHandler
 
@@ -16,8 +16,8 @@ db = Prisma()
 async def on_startup(app):
     await db.connect()
     
-async def on_cleanup(app):
-    await db.connect()
+async def on_cleanup(app    ):
+    await db.disconnect()
 
 
 async def create_room(request):
