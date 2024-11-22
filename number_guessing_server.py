@@ -16,7 +16,7 @@ db = Prisma()
 async def on_startup(app):
     await db.connect()
     
-async def on_cleanup(app    ):
+async def on_cleanup(app):
     await db.disconnect()
 
 
