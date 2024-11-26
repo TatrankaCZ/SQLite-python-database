@@ -20,7 +20,7 @@ async def on_cleanup(app):
     await db.disconnect()
 
 
-async def create_room(request):
+async def create_room(_):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neny pouzivan uvnitr funkce, pouziva se podtrzitko
     hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
 
     room = await db.room.create({
@@ -41,6 +41,8 @@ async def list_rooms(request):
             'guess_number': room.guess_number,
             "score": room.score
         })
+    # TODO ve vsech endpointech pouzij JSON
+    # TODO na klientu osetri chyby serveru
     return web.json_response(out)
 
 
@@ -97,7 +99,10 @@ if __name__ == "__main__":
     app = web.Application()
     app.on_startup.append(on_startup)
     app.add_routes([
-        web.get('/create', create_room),
+        # TODO zmenove requesty se provadeji pomoci metody POST, popr. pro update zaznamu pres PUT a PATCH
+        # web.post("/create", create_room)
+        #   https://cs.wikipedia.org/wiki/Representational_State_Transfer#:~:text=distribuuje%20v%20RPC.-,Vlastnosti,-metod%5Beditovat
+        web.get('/create', create_room), # zde nema byt GET
         web.get("/list", list_rooms),
         web.get('/guess', guess_number)
     ])

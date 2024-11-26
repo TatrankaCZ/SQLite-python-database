@@ -46,3 +46,14 @@ async def test_guess_number(cli):
     assert resp.status == 200
     text = await resp.text()
     assert text in ['UHADNUTO', 'VETSI', 'MENSI']
+
+
+async def test_invalid_endpoint(cli):
+    resp = await cli.get('/endpoint-that-not-exist')
+    assert resp.status == 404
+
+
+# TODO - osetrit vstupy klienta, aby server vracel 400
+async def test_guess_non_number(cli):
+    resp = await cli.get('/guess?number=x')
+    assert resp.status == 400 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
