@@ -8,6 +8,7 @@ from number_guessing_server import create_room, list_rooms, guess_number, on_sta
 async def app():
     app = web.Application()
     app.router.add_get('/create', create_room)
+    # TODO zmen /list na /rooms
     app.router.add_get('/list', list_rooms)
     app.router.add_get('/guess', guess_number)
     app.on_startup.append(on_startup)
@@ -38,7 +39,9 @@ async def test_list_rooms(cli):
 
 async def test_guess_number(cli):
     # create a room first
-    resp = await cli.get('/create')
+    # TODO zmen /create na /rooms
+    resp = await cli.get('/create') # TODO - tady bude cli.post("/rooms")
+    # informace o pokoji maji byt pod GET /rooms/{id} nebo /rooms?id={id}
     room_id = await resp.text()
 
     # guess a number

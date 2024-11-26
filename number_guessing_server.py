@@ -103,6 +103,7 @@ if __name__ == "__main__":
         # web.post("/create", create_room)
         #   https://cs.wikipedia.org/wiki/Representational_State_Transfer#:~:text=distribuuje%20v%20RPC.-,Vlastnosti,-metod%5Beditovat
         web.get('/create', create_room), # zde nema byt GET
+        # web.post("/rooms", create_room)
         web.get("/list", list_rooms),
         web.get('/guess', guess_number)
     ])
