@@ -20,7 +20,7 @@ async def on_cleanup(app):
     await db.disconnect()
 
 
-async def create_room(_):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neny pouzivan uvnitr funkce, pouziva se podtrzitko
+async def create_room(_):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neni pouzivan uvnitr funkce, pouziva se podtrzitko
     hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
 
     room = await db.room.create({
@@ -29,7 +29,7 @@ async def create_room(_):  # pokud je vyzadovan callback argument (puvodne v def
         
     
     })
-    return web.Response(text=str(room.id))
+    return web.json_response(text=str(room.id))
 
 
 async def list_rooms(request):
@@ -41,7 +41,7 @@ async def list_rooms(request):
             'guess_number': room.guess_number,
             "score": room.score
         })
-    # TODO ve vsech endpointech pouzij JSON
+    # TODO ve vsech endpointech pouzij JSON (hotovo?)
     # TODO na klientu osetri chyby serveru
     return web.json_response(out)
 
@@ -63,7 +63,7 @@ async def guess_number(request):
     except:
         answer = "NaN"
     
-    return web.Response(text=answer)
+    return web.json_response(answer)
 
 class MyServer(BaseHTTPRequestHandler):
 
@@ -99,13 +99,13 @@ if __name__ == "__main__":
     app = web.Application()
     app.on_startup.append(on_startup)
     app.add_routes([
-        # TODO zmenove requesty se provadeji pomoci metody POST, popr. pro update zaznamu pres PUT a PATCH
+        # TODO zmenove requesty se provadeji pomoci metody POST, popr. pro update zaznamu pres PUT a PATCH (hotovo?)
         # web.post("/create", create_room)
         #   https://cs.wikipedia.org/wiki/Representational_State_Transfer#:~:text=distribuuje%20v%20RPC.-,Vlastnosti,-metod%5Beditovat
-        web.get('/create', create_room), # zde nema byt GET
-        # web.post("/rooms", create_room)
-        web.get("/list", list_rooms),
-        web.get('/guess', guess_number)
+        web.post('/create', create_room), # zde nema byt GET (hotovo)
+        web.post("/rooms", create_room),
+        web.post("/list", list_rooms),
+        web.post('/guess', guess_number)
     ])
     web.run_app(app)
     print("Server stopped.")
