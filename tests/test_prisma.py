@@ -8,8 +8,8 @@ from number_guessing_server import create_room, list_rooms, guess_number, on_sta
 async def app():
     app = web.Application()
     app.router.add_get('/create', create_room)
-    # TODO zmen /list na /rooms
-    app.router.add_get('/list', list_rooms)
+    # TODO zmen /list na /rooms (hotovo)
+    app.router.add_get('/rooms', list_rooms)
     app.router.add_get('/guess', guess_number)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
@@ -24,12 +24,11 @@ async def test_create_room(cli):
     resp = await cli.get('/create')
     assert resp.status == 200
     text = await resp.text()
-    assert text.isdigit()  # Assuming the response is the room ID
+    assert text.isdigit()  
 
 async def test_list_rooms(cli):
-    # create a room first
     await cli.get('/create')
-    resp = await cli.get('/list')
+    resp = await cli.get('/rooms')
     assert resp.status == 200
     json_resp = await resp.json()
     assert isinstance(json_resp, list)
@@ -38,13 +37,12 @@ async def test_list_rooms(cli):
     assert 'score' in json_resp[0]
 
 async def test_guess_number(cli):
-    # create a room first
-    # TODO zmen /create na /rooms
-    resp = await cli.get('/create') # TODO - tady bude cli.post("/rooms")
-    # informace o pokoji maji byt pod GET /rooms/{id} nebo /rooms?id={id}
+    # TODO zmen /create na /rooms (hotovo)
+    resp = await cli.post('/rooms') # TODO - tady bude cli.post("/rooms") (hotovo)
+    # informace o pokoji maji byt pod GET /rooms/{id} nebo /rooms?id={id} (u tohohle potrebuju poradit)
     room_id = await resp.text()
 
-    # guess a number
+
     resp = await cli.get(f'/guess?number=5&room_id={room_id}')
     assert resp.status == 200
     text = await resp.text()
@@ -56,7 +54,27 @@ async def test_invalid_endpoint(cli):
     assert resp.status == 404
 
 
-# TODO - osetrit vstupy klienta, aby server vracel 400
+# TODO - osetrit vstupy klienta, aby server vracel 400 (rozbity, budu potrebovat poradit)
 async def test_guess_non_number(cli):
     resp = await cli.get('/guess?number=x')
     assert resp.status == 400 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+    
+
+async def test_guess_negative_number(cli):
+    for i in range(-1, -11, -1):
+        resp = await cli.get('/guess?number=' + str(i))
+    assert resp.status == 400
+    
+
+async def test_guess_empty_integer(cli):
+    resp = await cli.get('/guess?number=')
+    assert resp.status == 400
+    
+
+async def test_guess_special_character(cli):
+    characterList = ["@", "#", "&", "\\", "/", "|", "*", "!", "%", "$", "<", ">"]
+    for i in characterList:
+        resp = await cli.get('/guess?number=' + str(i))    
+    assert resp.status == 400
+    
+
