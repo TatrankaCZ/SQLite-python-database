@@ -1,15 +1,42 @@
 
 # client-test 4 (nejnovejsi)
 
+from ctypes import alignment
 import sys
 from PySide6.QtCore import QRect, Qt, Slot, QCoreApplication
 from PySide6.QtGui import QFont, QPen
 from PySide6.QtWidgets import QStackedWidget, QApplication, QGridLayout, QLabel, QLayout, QWidget, QListWidget, QListWidgetItem, \
-    QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGraphicsScene
+    QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGraphicsScene, QMainWindow
 import time
 
 import requests
 from bs4 import BeautifulSoup
+
+darkStyleSheet = """
+    QWidget {
+        background-color: #121f26;
+        color: #ffffff;
+    }
+    QPushButton {
+        background-color: #192638;
+        color: #ffffff;
+        border: 1px solid #0c141f;
+        border-radius: 5px;
+    }
+    QPushButton:hover {
+        background-color: #22334a;
+    }
+    QListWidget {
+        background-color: #192638;
+        color: #ffffff;
+        border: 1px solid #0c141f;
+    }
+    QLineEdit {
+        background-color: #192638;
+        color: #ffffff;
+        border: 1px solid #0c141f;
+    }
+"""
 
 
 def get_html(url):
@@ -30,7 +57,8 @@ class WelcomeScreen(QHBoxLayout):
 
         welcome = QLabel("Vitej!", alignment=Qt.AlignCenter)
         welcome.setFont(welcome_font)
-        self.welcome_button = QPushButton("zacit")
+        self.welcome_button = QPushButton("zacit", font=QFont("calibri", 15))
+        self.welcome_button.setMinimumSize(150, 50)
         self.welcome_button.clicked.connect(app.RoomMove1)#(app.WSWidget, app.MMWidget))
 
         start_layout.addWidget(welcome)
@@ -74,11 +102,13 @@ class RoomSelection(QHBoxLayout):
 
         self.gentext = QWidget()
         
-        self.generate = QPushButton("generovat")
+        self.generate = QPushButton("generovat mistnost", font=QFont("calibri", 15))
+        self.generate.setMinimumSize(150, 30)
         self.generate.clicked.connect(app.roomgen)
         self.generated_rooms = QVBoxLayout()
 
-        self.Back = QPushButton("zpet")
+        self.Back = QPushButton("zpet", font=QFont("calibri", 15))
+        self.Back.setMinimumSize(150, 30)
         self.Back.clicked.connect(app.RoomMove4)#(app.MMWidget, app.RLWidget))
         
         self.generated_rooms.addWidget(self.RoomSelectionLabel)
@@ -92,13 +122,15 @@ class GameField(QVBoxLayout):
      def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.GameFieldLabel = QLabel("Herni pole", alignment=Qt.AlignCenter, font=QFont("calibri", 20))
+        self.GameFieldLabel = QLabel("Herni pole", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
 
-        self.text_widget = QLabel("vysledek", alignment=Qt.AlignCenter)
-        self.line_edit = QLineEdit()
+        self.text_widget = QLabel("vysledek", alignment=Qt.AlignCenter, font=QFont("calibri", 15))
+        self.line_edit = QLineEdit(font=QFont("calibri", 15))
+        self.line_edit.setMinimumSize(150, 30)
         self.line_edit.returnPressed.connect(app.guess)
 
-        self.submit_button = QPushButton("potvrdit")
+        self.submit_button = QPushButton("potvrdit", font=QFont("calibri", 15))
+        self.submit_button.setMinimumSize(150, 40)
         self.submit_button.clicked.connect(app.guess)
 
         # self.content_layout = QVBoxLayout()
@@ -111,7 +143,8 @@ class GameField(QVBoxLayout):
         self.input_text = QWidget()
         self.input_text.setLayout(self.text)
 
-        self.Back = QPushButton("zpet")
+        self.Back = QPushButton("zpet", font=QFont("calibri", 15))
+        self.Back.setMinimumSize(150, 40)
         self.Back.clicked.connect(app.RoomMove5)#(app.MMWidget, app.RLWidget))
 
         self.addWidget(self.GameFieldLabel)
@@ -125,15 +158,16 @@ class MainMenu(QVBoxLayout):
         
         self.MainMenuLabel = QLabel("Hlavni menu", alignment=Qt.AlignCenter, font=QFont("calibri", 48))
 
-        self.RoomList = QPushButton("Seznam mistnosti")
+        self.RoomList = QPushButton("Seznam mistnosti", font=QFont("calibri", 15))
+        self.RoomList.setMinimumSize(150, 50)
         self.RoomList.clicked.connect(app.RoomMove2)#(app.MMWidget, app.RLWidget))
 
-        self.GameField = QPushButton("Hraci pole")
-        self.GameField.clicked.connect(app.RoomMove3)#(app.MMWidget, app.RLWidget))
+        #self.GameField = QPushButton("Hraci pole")
+        #self.GameField.clicked.connect(app.RoomMove3)#(app.MMWidget, app.RLWidget))
         
         self.addWidget(self.MainMenuLabel)
         self.addWidget(self.RoomList)
-        self.addWidget(self.GameField)
+        #self.addWidget(self.GameField)
 
 class Widget(QWidget):
 
@@ -263,16 +297,16 @@ class Widget(QWidget):
     #    #self.show()
     #    print("funguje")
 
-    def switch_screen(self, mogus, to):
-        mogus.hide()
+    def switch_screen(self, before, to):
+        before.hide()
         to.show()
-        #self.MainLayout.replaceWidget(mogus, to)
+        #self.MainLayout.replaceWidget(before, to)
         #self.MainLayout.replaceWidget(self.EmptyWidget, to)
         #self.MainLayout = QWidget()
         #self.MainLayout.setLayout(self.WSWidget, self.MMWidget)
         
     def roomgen(self):
-        parse = get_html("http://localhost:8080/create")
+        parse = requests.post("http://localhost:8080/create")
         room_number = len(self.rooms) + 1
         room_name = f"mistnost {room_number}"
         self.rooms[room_name] = {}
@@ -280,11 +314,12 @@ class Widget(QWidget):
         self.rooms[room_name]["OUTPUT"] = room_name + "\nvysledek"
         item = QListWidgetItem(room_name)
         item.setTextAlignment(Qt.AlignCenter)
+        item.setFont(QFont("calibri", 15))
         self.room_list_screen.menu_widget.addItem(item)
 
     def guess(self):
         guessed_number = self.GFLayout.line_edit.text()
-        parse = get_html(f"http://localhost:8080/guess?room_id={self.selected_room}&number={guessed_number}")
+        parse = requests.post(f"http://localhost:8080/guess?room_id={self.selected_room}&number={guessed_number}")
         print("pressed")
         current_text = self.GFLayout.text_widget.text()
         # if parse.text == "MENSI":
@@ -294,16 +329,16 @@ class Widget(QWidget):
         # else:
         #    ...
         match parse.text:
-            case "VETSI":
+            case "\"VETSI\"":
                 msg = "Zadane cislo je vetsi"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
-            case "MENSI":
+            case "\"MENSI\"":
                 msg = "Zadane cislo je mensi"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
-            case "UHADNUTO":
-                msg = "Uhodl jsi cislo"
+            case "\"UHADNUTO\"":
+                msg = "Uhodl jsi cislo. Budes nasledne navracen do menu"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
                 QCoreApplication.processEvents()
@@ -312,13 +347,13 @@ class Widget(QWidget):
                 self.RoomMove5()
                 #self.main_widget.setVisible(False)
                 # self.text_widget.setText("output")
-            case "NaN":
+            case "\"NaN\"":
                 msg = f"\"{guessed_number}\" neni cislo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
 
         # self.text_widget.setText(f"{current_text}\n{msg}")
-
+        self.GFLayout.line_edit.setText("")
         print(parse.text)
 
     def on_selected(self, item):
@@ -350,6 +385,7 @@ class Widget(QWidget):
 
 if __name__ == "__main__":
     app = QApplication()
+    app.setStyleSheet(darkStyleSheet)
 
     widget = Widget()
     widget.resize(800, 600)
