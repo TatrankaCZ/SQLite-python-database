@@ -29,7 +29,7 @@ async def create_room(_):  # pokud je vyzadovan callback argument (puvodne v def
         
     
     })
-    return web.json_response(text=str(room.id))
+    return web.json_response(text=str(room.id), status=201)
 
 
 async def list_rooms(request):
@@ -47,8 +47,20 @@ async def list_rooms(request):
 
 
 async def guess_number(request):
-    number = request.rel_url.query["number"]
-    room_id = request.rel_url.query["room_id"]
+    params = request.rel_url.query
+    if "number" not in params:
+        return web.HTTPBadRequest(reason="Missing 'number'")
+    if "room_id" not in params:
+        return web.HTTPBadRequest(reason="Missing 'room_id'")
+    try:
+        number = int(params["number"])
+    except ValueError:
+        return web.HTTPBadRequest(reason="number must be an integer")
+    try:
+        room_id = int(params["room_id"])
+    except ValueError:
+        return web.HTTPBadRequest(reason="room_id must be an integer")
+
     answer = ""
     room = await db.room.find_unique(where={"id": int(room_id)})
     try:
