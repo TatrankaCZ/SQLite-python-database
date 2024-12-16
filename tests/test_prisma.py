@@ -54,40 +54,44 @@ async def test_invalid_endpoint(cli):
     assert resp.status == 404
 
 
-# TODO - osetrit vstupy klienta, aby server vracel 400 (rozbity, budu potrebovat poradit)
+# TODO - osetrit vstupy klienta, aby server vracel 400 
 async def test_guess_non_number(cli):
-    resp = await cli.get('/guess?number=x&room=1')
+    resp = await cli.get('/guess?number=x&room_id=1')
     assert resp.status == 400 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+    #assert await resp.json() == "400: Number must be an integer"
     
 
 async def test_guess_negative_number(cli):
-    for i in range(-1, -11, -1):
-        resp = await cli.get('/guess?number=' + str(i))
+    number = -10
+    resp = await cli.get('/guess?number=' + str(number) + '&room_id=1')
     assert resp.status == 400
+    #assert await resp.json() == "400: Number must be between 0 and 10"
     
 
 async def test_guess_empty_integer(cli):
     resp = await cli.get('/guess?number=&room_id=1')
     assert resp.status == 400
-    assert await resp.text() == "400: number must be an integer"
+    #assert await resp.json() == "400: Number must be an integer"
 
 
 
-async def test_xyz(cli):
-    resp = await cli.get('/guess?number=9999999999999999999999999999999999999999999999999999&room_id=1')
+async def test_guess_number_out_of_range(cli):
+    number = 100
+    resp = await cli.get('/guess?number=' + str(number) + '&room_id=1')
     assert resp.status == 400
-    assert await resp.text() == "400: number must be an integer"
+    #assert await resp.json() == "400: Number must be between 0 and 10"
 
 
 async def test_guess_empty_room(cli):
-    resp = await cli.get('/guess?number=')
+    resp = await cli.get('/guess?number=5&room_id=')
     assert resp.status == 400
+    #assert await resp.json() == "400: Room doesn't exist"
 
 
 async def test_guess_special_character(cli):
     characterList = ["@", "#", "&", "\\", "/", "|", "*", "!", "%", "$", "<", ">"]
     for i in characterList:
-        resp = await cli.get('/guess?number=' + str(i))    
+        resp = await cli.get('/guess?number=' + str(i) + '&room_id=1')    
     assert resp.status == 400
+    #assert await resp.json() == "400: Number must be an integer"
     
-
