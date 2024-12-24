@@ -116,8 +116,8 @@ if __name__ == "__main__":
         #   https://cs.wikipedia.org/wiki/Representational_State_Transfer#:~:text=distribuuje%20v%20RPC.-,Vlastnosti,-metod%5Beditovat
         web.post('/create', create_room), # zde nema byt GET (hotovo)
         web.post("/rooms", create_room),
-        web.post("/list", list_rooms),
-        web.post('/guess', guess_number)
+        web.get("/list", list_rooms),
+        web.get('/guess', guess_number)
     ])
     web.run_app(app)
     print("Server stopped.")
