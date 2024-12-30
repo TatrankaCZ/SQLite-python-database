@@ -319,7 +319,7 @@ class Widget(QWidget):
 
     def guess(self):
         guessed_number = self.GFLayout.line_edit.text()
-        parse = requests.post(f"http://localhost:8080/guess?room_id={self.selected_room}&number={guessed_number}")
+        parse = requests.get(f"http://localhost:8080/guess?room_id={self.selected_room}&number={guessed_number}")
         print("pressed")
         current_text = self.GFLayout.text_widget.text()
         # if parse.text == "MENSI":
