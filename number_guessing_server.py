@@ -77,31 +77,31 @@ async def guess_number(request):
     
     return web.json_response(answer)
 
-class MyServer(BaseHTTPRequestHandler):
-
-    mistnosti = {}
-
-    async def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-
-        if self.path.startswith("/guess"):
-            print("jsme v guess")
-            params = parse_qs(self.path[7:])
-            print(params)
-            print(params["number"])
-            print(params["room_id"])
-            number = int(params["number"][0])
-            room_id = params["room_id"][0]
-
-            if number > self.mistnosti[room_id]:
-                self.wfile.write(bytes("MENSI", "utf-8"))
-            elif number < self.mistnosti[room_id]:
-                self.wfile.write(bytes("VETSI", "utf-8"))
-            else:
-                self.wfile.write(bytes("UHADNUTO", "utf-8"))
-                MyServer.hadane_cislo = random.randrange(self.X, self.Y)
+#class MyServer(BaseHTTPRequestHandler):
+#
+#    mistnosti = {}
+#
+#    async def do_GET(self):
+#        self.send_response(200)
+#        self.send_header("Content-type", "text/html")
+#        self.end_headers()
+#
+#        if self.path.startswith("/guess"):
+#            print("jsme v guess")
+#            params = parse_qs(self.path[7:])
+#            print(params)
+#            print(params["number"])
+#            print(params["room_id"])
+#            number = int(params["number"][0])
+#            room_id = params["room_id"][0]
+#
+#            if number > self.mistnosti[room_id]:
+#                self.wfile.write(bytes("MENSI", "utf-8"))
+#            elif number < self.mistnosti[room_id]:
+#                self.wfile.write(bytes("VETSI", "utf-8"))
+#            else:
+#                self.wfile.write(bytes("UHADNUTO", "utf-8"))
+#                MyServer.hadane_cislo = random.randrange(self.X, self.Y)
 
 
 
