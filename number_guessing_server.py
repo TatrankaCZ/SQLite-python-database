@@ -1,13 +1,12 @@
 # Server
 from client import Prisma
 
-from http.server import BaseHTTPRequestHandler
-
 import random
 from urllib.parse import parse_qs
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
 
+# TODO - get rid off
 MIN_NUMBER = 0
 MAX_NUMBER = 10
 db = Prisma()
@@ -22,6 +21,7 @@ async def on_cleanup(app):
 
 async def create_room(_):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neni pouzivan uvnitr funkce, pouziva se podtrzitko
     hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
+    # TODO - rozsah hodnot bude endpoint prijimat v POST datech
 
     room = await db.room.create({
         'guess_number': hadane_cislo,
@@ -60,64 +60,45 @@ async def guess_number(request):
         room_id = int(params["room_id"])
     except ValueError:
         return web.HTTPBadRequest(reason="room_id must be an integer")
+    if number < 0:
+        return web.HTTPBadRequest(reason="number must be positive")
+    room = await db.room.find_unique(where={"id": int(room_id)})
 
     answer = ""
-    room = await db.room.find_unique(where={"id": int(room_id)})
     try:
         if int(number) == room.guess_number:
-            answer = "UHADNUTO"
+            answer = "found"
             
         elif int(number) > room.guess_number:
-            answer = "VETSI"
+            answer = "bigger"
             
         else:
-            answer = "MENSI"
+            answer = "lesser"
     except:
         answer = "NaN"
-    
-    return web.json_response(answer)
 
-#class MyServer(BaseHTTPRequestHandler):
-#
-#    mistnosti = {}
-#
-#    async def do_GET(self):
-#        self.send_response(200)
-#        self.send_header("Content-type", "text/html")
-#        self.end_headers()
-#
-#        if self.path.startswith("/guess"):
-#            print("jsme v guess")
-#            params = parse_qs(self.path[7:])
-#            print(params)
-#            print(params["number"])
-#            print(params["room_id"])
-#            number = int(params["number"][0])
-#            room_id = params["room_id"][0]
-#
-#            if number > self.mistnosti[room_id]:
-#                self.wfile.write(bytes("MENSI", "utf-8"))
-#            elif number < self.mistnosti[room_id]:
-#                self.wfile.write(bytes("VETSI", "utf-8"))
-#            else:
-#                self.wfile.write(bytes("UHADNUTO", "utf-8"))
-#                MyServer.hadane_cislo = random.randrange(self.X, self.Y)
+    out = {
+        "status": answer,
+    }
+
+    return web.json_response(out)
 
 
-
-
-
-if __name__ == "__main__":
+def create_app():
     app = web.Application()
-    app.on_startup.append(on_startup)
     app.add_routes([
         # TODO zmenove requesty se provadeji pomoci metody POST, popr. pro update zaznamu pres PUT a PATCH (hotovo?)
         # web.post("/create", create_room)
         #   https://cs.wikipedia.org/wiki/Representational_State_Transfer#:~:text=distribuuje%20v%20RPC.-,Vlastnosti,-metod%5Beditovat
         web.post('/create', create_room), # zde nema byt GET (hotovo)
         web.post("/rooms", create_room),
-        web.get("/list", list_rooms),
+        web.get("/rooms", list_rooms),
         web.get('/guess', guess_number)
     ])
+    return app
+
+if __name__ == "__main__":
+    app = create_app()
+    app.on_startup.append(on_startup)
     web.run_app(app)
     print("Server stopped.")
