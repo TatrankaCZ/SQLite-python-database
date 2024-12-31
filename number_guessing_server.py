@@ -19,7 +19,8 @@ async def on_cleanup(app):
     await db.disconnect()
 
 
-async def create_room(_):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neni pouzivan uvnitr funkce, pouziva se podtrzitko
+async def create_room(request):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neni pouzivan uvnitr funkce, pouziva se podtrzitko
+    post_data = request.json()
     hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
     # TODO - rozsah hodnot bude endpoint prijimat v POST datech
 
@@ -41,7 +42,6 @@ async def list_rooms(request):
             'guess_number': room.guess_number,
             "score": room.score
         })
-    # TODO ve vsech endpointech pouzij JSON (hotovo?)
     # TODO na klientu osetri chyby serveru
     return web.json_response(out)
 

@@ -11,7 +11,7 @@ async def on_startup(app):
 async def app():
     app_object = create_app()
     app_object.on_startup.append(on_startup)
-    # app_object.on_cleanup.append(on_cleanup)
+    app_object.on_cleanup.append(on_cleanup)
     return app_object
 
 @pytest.fixture
