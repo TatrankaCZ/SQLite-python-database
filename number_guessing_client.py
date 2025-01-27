@@ -8,6 +8,7 @@ from PySide6.QtGui import QFont, QPen
 from PySide6.QtWidgets import QStackedWidget, QApplication, QGridLayout, QLabel, QLayout, QWidget, QListWidget, QListWidgetItem, \
     QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGraphicsScene, QMainWindow
 import time
+import json
 
 import requests
 from bs4 import BeautifulSoup
@@ -126,6 +127,7 @@ class GameField(QVBoxLayout):
 
         self.text_widget = QLabel("vysledek", alignment=Qt.AlignCenter, font=QFont("calibri", 15))
         self.line_edit = QLineEdit(font=QFont("calibri", 15))
+        self.line_edit.setPlaceholderText("Zadejte hadane cislo")
         self.line_edit.setMinimumSize(150, 30)
         self.line_edit.returnPressed.connect(app.guess)
 
@@ -306,7 +308,7 @@ class Widget(QWidget):
         #self.MainLayout.setLayout(self.WSWidget, self.MMWidget)
         
     def roomgen(self):
-        parse = requests.post("http://localhost:8080/create")
+        parse = requests.post("http://localhost:8080/create", json = {})
         room_number = len(self.rooms) + 1
         room_name = f"mistnost {room_number}"
         self.rooms[room_name] = {}
@@ -328,16 +330,17 @@ class Widget(QWidget):
         #    msg = "Hledane cislo je vetsi"
         # else:
         #    ...
-        match parse.text:
-            case "\"VETSI\"":
+        answer = parse.json()
+        match answer["status"]:
+            case "bigger":
                 msg = "Zadane cislo je vetsi"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
-            case "\"MENSI\"":
+            case "lesser":
                 msg = "Zadane cislo je mensi"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
-            case "\"UHADNUTO\"":
+            case "found":
                 msg = "Uhodl jsi cislo. Budes nasledne navracen do menu"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
@@ -347,7 +350,7 @@ class Widget(QWidget):
                 self.RoomMove5()
                 #self.main_widget.setVisible(False)
                 # self.text_widget.setText("output")
-            case "\"NaN\"":
+            case "NaN":
                 msg = f"\"{guessed_number}\" neni cislo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
