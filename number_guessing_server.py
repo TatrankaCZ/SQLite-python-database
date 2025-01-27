@@ -1,15 +1,14 @@
 # Server
 from client import Prisma
 
+
 import random
 from urllib.parse import parse_qs
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
 
-# TODO - get rid off
-MIN_NUMBER = 0
-MAX_NUMBER = 10
 db = Prisma()
+
 
 
 async def on_startup(app):
@@ -20,13 +19,20 @@ async def on_cleanup(app):
 
 
 async def create_room(request):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neni pouzivan uvnitr funkce, pouziva se podtrzitko
-    post_data = request.json()
+    database = await db.room.find_first()
+    MIN_NUMBER = database.min_number
+    MAX_NUMBER = database.max_number
+    
+    post_data = await request.json()
     hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
     # TODO - rozsah hodnot bude endpoint prijimat v POST datech
 
     room = await db.room.create({
         'guess_number': hadane_cislo,
-        'score': 10
+        'score': 10,
+        'min_number': MIN_NUMBER,
+        'max_number': MAX_NUMBER
+        
         
     
     })
