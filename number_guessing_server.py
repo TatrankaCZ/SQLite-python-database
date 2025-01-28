@@ -19,22 +19,19 @@ async def on_cleanup(app):
 
 
 async def create_room(request):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neni pouzivan uvnitr funkce, pouziva se podtrzitko
-    database = await db.room.find_first()
-    MIN_NUMBER = database.min_number
-    MAX_NUMBER = database.max_number
-    
     post_data = await request.json()
-    hadane_cislo = random.randrange(MIN_NUMBER, MAX_NUMBER)
+
+    min_ = int(post_data["min"])
+    max_ = int(post_data["max"])
+
+    hadane_cislo = random.randrange(min_, max_)
     # TODO - rozsah hodnot bude endpoint prijimat v POST datech
 
     room = await db.room.create({
         'guess_number': hadane_cislo,
         'score': 10,
-        'min_number': MIN_NUMBER,
-        'max_number': MAX_NUMBER
-        
-        
-    
+        'min_number': min_,
+        'max_number': max_
     })
     return web.json_response(text=str(room.id), status=201)
 

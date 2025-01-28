@@ -20,22 +20,30 @@ async def cli(aiohttp_client, app):
 
 
 async def test_create_room(cli):
-    resp = await cli.post('/rooms', json = {})
+    resp = await cli.post('/rooms', json={
+        "min": 1,
+        "max": 100
+    })
     assert resp.status == 201
     text = await resp.text()
     assert text.isdigit() 
-    database = await db.room.find_first()
-    MIN_NUMBER = database.min_number
-    MAX_NUMBER = database.max_number
+    # database = await db.room.find_first()
+
+    #MIN_NUMBER = database.min_number
+    # MAX_NUMBER = database.max_number
+
     room = await db.room.find_unique(where={"id": int(text)})
-    assert room.min_number == MIN_NUMBER
-    assert room.max_number == MAX_NUMBER
+    assert room.min_number == 1
+    assert room.max_number == 100
 
       
  
 
 async def test_list_rooms(cli):
-    resp = await cli.post('/rooms', json = {})
+    resp = await cli.post('/rooms', json={
+        "min": 1,
+        "max": 100
+    })
     assert resp.status == 201
     resp = await cli.get('/rooms')
     assert resp.status == 200
@@ -46,7 +54,10 @@ async def test_list_rooms(cli):
     assert 'score' in json_resp[0]
 
 async def test_guess_number(cli):
-    resp = await cli.post('/rooms', json = {})
+    resp = await cli.post('/rooms', json={
+        "min": 1,
+        "max": 100
+    })
     # informace o pokoji maji byt pod GET /rooms/{id} nebo /rooms?id={id} (u tohohle potrebuju poradit)
     room_id = await resp.text()
 
