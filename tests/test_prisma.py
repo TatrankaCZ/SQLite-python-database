@@ -1,3 +1,4 @@
+import random
 
 import pytest
 from number_guessing_server import create_app, db, on_cleanup
@@ -27,17 +28,24 @@ async def test_create_room(cli):
     assert resp.status == 201
     text = await resp.text()
     assert text.isdigit() 
-    # database = await db.room.find_first()
-
-    #MIN_NUMBER = database.min_number
-    # MAX_NUMBER = database.max_number
 
     room = await db.room.find_unique(where={"id": int(text)})
     assert room.min_number == 1
     assert room.max_number == 100
 
-      
- 
+
+@pytest.fixture
+def create_room():
+    async def inner(expected_number=random.randint(1, 100)):
+        room = await db.room.create({
+            'guess_number': expected_number,
+            'score': 10,
+            'min_number': 1,
+            'max_number': 100
+        })
+        return room
+    return inner
+
 
 async def test_list_rooms(cli):
     resp = await cli.post('/rooms', json={
@@ -53,20 +61,22 @@ async def test_list_rooms(cli):
     assert 'guess_number' in json_resp[0]
     assert 'score' in json_resp[0]
 
-async def test_guess_number(cli):
-    resp = await cli.post('/rooms', json={
-        "min": 1,
-        "max": 100
-    })
-    # informace o pokoji maji byt pod GET /rooms/{id} nebo /rooms?id={id} (u tohohle potrebuju poradit)
-    room_id = await resp.text()
+@pytest.mark.parametrize(
+    "expected_number,guess_number,status",
+    [
+        (33, 55, "bigger"),
+        (55, 33, "lesser"),
+        (50, 50, "found")
+    ]
+)
 
-    # TODO - z databaze zjisti hledane cislo
+async def test_guess_number(cli, create_room, expected_number, guess_number, status):
+    room = await create_room(expected_number)
+    resp = await cli.get(f'/guess?number={guess_number}&room_id={room.id}')
 
-    resp = await cli.get(f'/guess?number=5&room_id={room_id}')
     assert resp.status == 200
-    json = await resp.json()
-    assert json["status"] in ['lesser', 'bigger', 'found'], json
+    guess_data = await resp.json()
+    assert guess_data["status"] == status
 
 
 async def test_invalid_endpoint(cli):
@@ -75,7 +85,8 @@ async def test_invalid_endpoint(cli):
 
 
 # TODO - osetrit vstupy klienta, aby server vracel 400 
-async def test_guess_non_number(cli):
+async def test_guess_non_number(cli, create_room):
+    room = await create_room()
     # TODO - tady chybi vytvoreni pokoje
     resp = await cli.get('/guess?number=x&room_id=1')
     assert resp.status == 400 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
