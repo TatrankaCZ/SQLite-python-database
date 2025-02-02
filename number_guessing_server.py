@@ -1,12 +1,14 @@
 # Server
 from client import Prisma
-
+from dotenv import load_dotenv
 
 import random
 from urllib.parse import parse_qs
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
 
+
+load_dotenv()
 db = Prisma()
 
 
