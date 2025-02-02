@@ -105,7 +105,7 @@ class RoomSelection(QHBoxLayout):
         
         self.generate = QPushButton("generovat mistnost", font=QFont("calibri", 15))
         self.generate.setMinimumSize(150, 30)
-        self.generate.clicked.connect(app.roomgen)
+        self.generate.clicked.connect(app.RoomMove7)
         self.generated_rooms = QVBoxLayout()
 
         self.Back = QPushButton("zpet", font=QFont("calibri", 15))
@@ -118,6 +118,50 @@ class RoomSelection(QHBoxLayout):
         self.generated_rooms.addWidget(self.Back)
         
         self.gentext.setLayout(self.generated_rooms)
+
+class NumberRangeSelect(QVBoxLayout):
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.NumberRangeSelectLabel = QLabel("Vytvorit mistnost", alignment=Qt.AlignCenter, font=QFont("calibri", 30))
+        
+        self.minNumberText = QLabel("Minimalni cislo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
+        self.minNumber = QLineEdit(font=QFont("calibri", 20))
+        self.minNumber.setPlaceholderText("1")
+        
+        self.maxNumberText = QLabel("Maximalni cislo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
+        self.maxNumber = QLineEdit(font=QFont("calibri", 20))
+        self.maxNumber.setPlaceholderText("11")
+
+        self.horizontalSplit = QHBoxLayout()
+        self.verticalSplit1 = QVBoxLayout()
+        self.verticalSplit2 = QVBoxLayout()
+
+        self.verticalSplit1.addWidget(self.minNumberText)
+        self.verticalSplit1.addWidget(self.minNumber)
+
+        self.verticalSplit2.addWidget(self.maxNumberText)
+        self.verticalSplit2.addWidget(self.maxNumber)
+
+        self.verticalSplit_ = QWidget()
+        self.verticalSplit_.setLayout(self.verticalSplit1)
+        self.verticalSplit2_ = QWidget()
+        self.verticalSplit2_.setLayout(self.verticalSplit2)
+
+        self.horizontalSplit.addWidget(self.verticalSplit_)
+        self.horizontalSplit.addWidget(self.verticalSplit2_)
+
+        self.horizontalSplitWidget = QWidget()
+
+        self.horizontalSplitWidget.setLayout(self.horizontalSplit)
+
+        self.generate = QPushButton("generovat mistnost", font=QFont("calibri", 15))
+        self.generate.setMinimumSize(150, 30)
+        self.generate.clicked.connect(app.roomgen)
+
+        self.addWidget(self.NumberRangeSelectLabel)
+        self.addWidget(self.horizontalSplitWidget)
+        self.addWidget(self.generate)
 
 class GameField(QVBoxLayout):
      def __init__(self, app, *args, **kwargs):
@@ -263,6 +307,13 @@ class Widget(QWidget):
         self.RLWidget.setAutoFillBackground(True)
         self.RLWidget.hide()
 
+        self.number_range_screen = NumberRangeSelect(self)
+
+        self.NRWidget = QWidget()
+        self.NRWidget.setLayout(self.number_range_screen)
+        self.NRWidget.setAutoFillBackground(True)
+        self.NRWidget.hide()
+
         self.MainMenuLayout = MainMenu(self)
         
         self.MMWidget = QWidget()
@@ -281,6 +332,7 @@ class Widget(QWidget):
         self.MainLayout.addWidget(self.WSWidget)
         self.MainLayout.addWidget(self.MMWidget)
         self.MainLayout.addWidget(self.RLWidget)
+        self.MainLayout.addWidget(self.NRWidget)
         self.MainLayout.addWidget(self.GFWidget)
 
         self.setLayout(self.MainLayout)
@@ -308,7 +360,9 @@ class Widget(QWidget):
         #self.MainLayout.setLayout(self.WSWidget, self.MMWidget)
         
     def roomgen(self):
-        parse = requests.post("http://localhost:8080/create", json = {})
+        min_number = self.number_range_screen.minNumber.text()
+        max_number = self.number_range_screen.maxNumber.text()
+        parse = requests.post("http://localhost:8080/create", json = {"min": min_number, "max": max_number})
         room_number = len(self.rooms) + 1
         room_name = f"mistnost {room_number}"
         self.rooms[room_name] = {}
@@ -318,6 +372,7 @@ class Widget(QWidget):
         item.setTextAlignment(Qt.AlignCenter)
         item.setFont(QFont("calibri", 15))
         self.room_list_screen.menu_widget.addItem(item)
+        self.RoomMove8()
 
     def guess(self):
         guessed_number = self.GFLayout.line_edit.text()
@@ -384,7 +439,10 @@ class Widget(QWidget):
         self.switch_screen(self.GFWidget, self.MMWidget)
     def RoomMove6(self):
         self.switch_screen(self.RLWidget, self.GFWidget)
-
+    def RoomMove7(self):
+        self.switch_screen(self.RLWidget, self.NRWidget)
+    def RoomMove8(self):
+        self.switch_screen(self.NRWidget, self.RLWidget)
 
 if __name__ == "__main__":
     app = QApplication()
