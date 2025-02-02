@@ -2,7 +2,9 @@ import random
 
 import pytest
 from number_guessing_server import create_app, db, on_cleanup
+from dotenv import load_dotenv
 
+load_dotenv(".env.test")
 
 async def on_startup(app):
     await db.connect()
