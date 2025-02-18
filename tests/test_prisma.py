@@ -1,13 +1,13 @@
 import random
 
 import pytest
-from number_guessing_server import create_app, db, on_cleanup
-from dotenv import load_dotenv
+from client_test import Prisma
 
-load_dotenv(".env.test")
+from number_guessing_server import create_app, on_cleanup
 
 async def on_startup(app):
-    await db.connect()
+    app.db = Prisma()
+    await app.db.connect()
 
 
 @pytest.fixture
@@ -31,15 +31,15 @@ async def test_create_room(cli):
     text = await resp.text()
     assert text.isdigit() 
 
-    room = await db.room.find_unique(where={"id": int(text)})
+    room = await cli.app.db.room.find_unique(where={"id": int(text)})
     assert room.min_number == 1
     assert room.max_number == 100
 
 
 @pytest.fixture
-def create_room():
+def create_room(cli):
     async def inner(expected_number=random.randint(1, 100)):
-        room = await db.room.create({
+        room = await cli.app.db.room.create({
             'guess_number': expected_number,
             'score': 10,
             'min_number': 1,
@@ -49,7 +49,7 @@ def create_room():
     return inner
 
 
-async def test_list_rooms(cli):
+async def test_list_rooms(cli, create_room):
     resp = await cli.post('/rooms', json={
         "min": 1,
         "max": 100

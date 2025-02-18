@@ -1,0 +1,20 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:test.db"
+}
+generator py {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+  output = "./client_test"
+}
+model Room {
+  id        Int     @id @default(autoincrement())
+  guess_number Int
+  score Int
+  min_number Int @default(1)
+  max_number Int @default(11)
+}

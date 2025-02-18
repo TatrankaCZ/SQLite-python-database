@@ -1,4 +1,6 @@
 # Server
+import os
+
 from client import Prisma
 from dotenv import load_dotenv
 
@@ -9,15 +11,16 @@ from aiohttp import web
 
 
 load_dotenv()
-db = Prisma()
-
 
 
 async def on_startup(app):
-    await db.connect()
+    app.db = Prisma()
+    # db = Prisma()
+    await app.db.connect()
     
 async def on_cleanup(app):
-    await db.disconnect()
+
+    await app.db.disconnect()
 
 
 async def create_room(request):  # pokud je vyzadovan callback argument (puvodne v definic funkce bylo request) a neni pouzivan uvnitr funkce, pouziva se podtrzitko
@@ -29,7 +32,7 @@ async def create_room(request):  # pokud je vyzadovan callback argument (puvodne
     hadane_cislo = random.randrange(min_, max_)
     # TODO - rozsah hodnot bude endpoint prijimat v POST datech
 
-    room = await db.room.create({
+    room = await request.app.db.room.create({
         'guess_number': hadane_cislo,
         'score': 10,
         'min_number': min_,
@@ -39,7 +42,7 @@ async def create_room(request):  # pokud je vyzadovan callback argument (puvodne
 
 
 async def list_rooms(request):
-    rooms = await db.room.find_many()
+    rooms = await request.app.db.room.find_many()
     out = []
     for room in rooms:
         out.append({
@@ -67,7 +70,7 @@ async def guess_number(request):
         return web.HTTPBadRequest(reason="room_id must be an integer")
     if number < 0:
         return web.HTTPBadRequest(reason="number must be positive")
-    room = await db.room.find_unique(where={"id": int(room_id)})
+    room = await request.app.db.room.find_unique(where={"id": int(room_id)})
 
     answer = ""
     try:
@@ -105,5 +108,5 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.on_startup.append(on_startup)
-    web.run_app(app)
+    web.run_app(app, port=8081)
     print("Server stopped.")

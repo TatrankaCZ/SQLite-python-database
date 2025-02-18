@@ -1,0 +1,1 @@
+cat config/base.def  config/datasource.test.def config/generator.test.def config/db_schema.def > prisma.test.schema

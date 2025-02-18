@@ -1,0 +1,1 @@
+cat config/base.def  config/datasource.app.def config/generator.app.def config/db_schema.def > prisma.schema
