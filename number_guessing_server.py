@@ -10,7 +10,6 @@ from urllib.parse import parse_qs
 from aiohttp import web
 
 
-load_dotenv()
 
 
 async def on_startup(app):
@@ -109,4 +108,5 @@ if __name__ == "__main__":
     app = create_app()
     app.on_startup.append(on_startup)
     web.run_app(app, port=8081)
+    load_dotenv(".env")
     print("Server stopped.")
