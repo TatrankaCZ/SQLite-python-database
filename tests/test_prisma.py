@@ -1,9 +1,14 @@
 import random
+import os
 
 import pytest
 from client_test import Prisma
+from dotenv import load_dotenv
 
 from number_guessing_server import create_app, on_cleanup
+
+load_dotenv(".env.test")
+
 
 async def on_startup(app):
     app.db = Prisma()
@@ -139,4 +144,8 @@ async def test_guess_special_character(cli):
         resp = await cli.get('/guess?number=' + str(i) + '&room_id=1')    
     assert resp.status == 400
     #assert await resp.json() == "400: Number must be an integer"
+
+
+
+
     
