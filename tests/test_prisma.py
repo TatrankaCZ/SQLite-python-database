@@ -2,12 +2,11 @@ import random
 import os
 
 import pytest
+from . import generate_test_db
 from client_test import Prisma
 from dotenv import load_dotenv
 
 from number_guessing_server import create_app, on_cleanup
-
-load_dotenv(".env.test")
 
 
 async def on_startup(app):
