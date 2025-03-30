@@ -78,15 +78,20 @@ async def guess_number(request):
             
         elif int(number) > room.guess_number:
             answer = "bigger"
+            if room.score > 0:
+                room.score -= 1
             
         else:
             answer = "lesser"
+            if room.score > 0:
+                room.score -= 1
     except:
         answer = "NaN"
 
     out = {
         "status": answer,
     }
+    await request.app.db.room.update(where={"id": room_id}, data={"score": room.score})
 
     return web.json_response(out)
 
