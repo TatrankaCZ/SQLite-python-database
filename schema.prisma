@@ -20,7 +20,7 @@ generator py {
 model Room {
   id        Int     @id @default(autoincrement())
   guess_number Int
-  score Int
+  score Int @default(100)
   min_number Int @default(1)
   max_number Int @default(11)
 }
