@@ -5,10 +5,11 @@ from ctypes import alignment
 import sys
 from PySide6.QtCore import QRect, Qt, Slot, QCoreApplication
 from PySide6.QtGui import QFont, QPen
-from PySide6.QtWidgets import QStackedWidget, QApplication, QGridLayout, QLabel, QLayout, QWidget, QListWidget, QListWidgetItem, \
-    QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGraphicsScene, QMainWindow
+from PySide6.QtWidgets import QStackedWidget, QApplication, QGridLayout, QLabel, QLayout, QTableWidget, QWidget, QListWidget, QListWidgetItem, \
+    QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGraphicsScene, QMainWindow, QTableWidgetItem
 import time
 import json
+
 
 import requests
 from bs4 import BeautifulSoup
@@ -36,6 +37,20 @@ darkStyleSheet = """
         background-color: #192638;
         color: #ffffff;
         border: 1px solid #0c141f;
+    }
+    QTableWidget {
+        background-color: #192638;
+        color: #ffffff;
+        border: 1px solid #0c141f;
+
+    }
+    QTableWidget QHeaderView::section {
+        background-color: #192638; 
+        color: #ffffff;       
+        border: 1px solid #0c141f;
+    }
+    QTableWidget::item {
+
     }
 """
 
@@ -206,14 +221,63 @@ class MainMenu(QVBoxLayout):
 
         self.RoomList = QPushButton("Seznam mistnosti", font=QFont("calibri", 15))
         self.RoomList.setMinimumSize(150, 50)
-        self.RoomList.clicked.connect(app.RoomMove2)#(app.MMWidget, app.RLWidget))
+        self.RoomList.clicked.connect(app.RoomMove2)
+
+        self.HighScore = QPushButton("Score", font=QFont("calibri", 15))
+        self.HighScore.setMinimumSize(150, 50)
+        self.HighScore.clicked.connect(app.RoomMove9)
 
         #self.GameField = QPushButton("Hraci pole")
         #self.GameField.clicked.connect(app.RoomMove3)#(app.MMWidget, app.RLWidget))
         
         self.addWidget(self.MainMenuLabel)
         self.addWidget(self.RoomList)
+        self.addWidget(self.HighScore)
         #self.addWidget(self.GameField)
+
+
+class HighScore(QVBoxLayout):
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["Room", "Score", "Hadane cislo"])
+        self.table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
+
+        self.loadButton = QPushButton("Nacist mistnosti", font=QFont("calibri", 15))
+        self.loadButton.clicked.connect(self.load_rooms)
+
+        self.Back = QPushButton("zpet", font=QFont("calibri", 15))
+        self.Back.setMinimumSize(150, 50)
+        self.Back.clicked.connect(app.RoomMove10)
+        self.addWidget(self.table)
+        self.addWidget(self.loadButton)
+        self.addWidget(self.Back)
+
+    def fetch_rooms(self):
+        parseRooms = requests.get(f"http://localhost:8081/rooms")
+        output = parseRooms.json()
+        return output
+
+    def load_rooms(self):
+        self.update_table()
+
+    def update_table(self):
+        rooms = self.fetch_rooms()
+        self.table.setRowCount(len(rooms))
+        for i, room in enumerate(rooms):
+            RoomID = QTableWidgetItem(str(room["id"]))
+            Score = QTableWidgetItem(str(room["score"]))
+            GuessNumber = QTableWidgetItem(str(room["guess_number"]))
+
+            RoomID.setTextAlignment(Qt.AlignCenter)
+            Score.setTextAlignment(Qt.AlignCenter)
+            GuessNumber.setTextAlignment(Qt.AlignCenter)
+
+            self.table.setItem(i, 0, RoomID)
+            self.table.setItem(i, 1, Score)
+            self.table.setItem(i, 2, GuessNumber)
 
 class Widget(QWidget):
 
@@ -327,13 +391,21 @@ class Widget(QWidget):
         self.GFWidget.setLayout(self.GFLayout)
         self.GFWidget.setAutoFillBackground(True)
         self.GFWidget.hide()
-        
+
+        self.HSLayout = HighScore(self)
+
+        self.HSWidget = QWidget()
+        self.HSWidget.setLayout(self.HSLayout)
+        self.HSWidget.setAutoFillBackground(True)
+        self.HSWidget.hide()
+
         self.MainLayout = QHBoxLayout()
         self.MainLayout.addWidget(self.WSWidget)
         self.MainLayout.addWidget(self.MMWidget)
         self.MainLayout.addWidget(self.RLWidget)
         self.MainLayout.addWidget(self.NRWidget)
         self.MainLayout.addWidget(self.GFWidget)
+        self.MainLayout.addWidget(self.HSWidget)
 
         self.setLayout(self.MainLayout)
 
@@ -362,7 +434,7 @@ class Widget(QWidget):
     def roomgen(self):
         min_number = self.number_range_screen.minNumber.text()
         max_number = self.number_range_screen.maxNumber.text()
-        parse = requests.post("http://localhost:8080/create", json = {"min": min_number, "max": max_number})
+        parse = requests.post("http://localhost:8081/create", json = {"min": min_number, "max": max_number})
         room_number = len(self.rooms) + 1
         room_name = f"mistnost {room_number}"
         self.rooms[room_name] = {}
@@ -376,7 +448,7 @@ class Widget(QWidget):
 
     def guess(self):
         guessed_number = self.GFLayout.line_edit.text()
-        parse = requests.get(f"http://localhost:8080/guess?room_id={self.selected_room}&number={guessed_number}")
+        parse = requests.get(f"http://localhost:8081/guess?room_id={self.selected_room}&number={guessed_number}")
         print("pressed")
         current_text = self.GFLayout.text_widget.text()
         # if parse.text == "MENSI":
@@ -443,6 +515,10 @@ class Widget(QWidget):
         self.switch_screen(self.RLWidget, self.NRWidget)
     def RoomMove8(self):
         self.switch_screen(self.NRWidget, self.RLWidget)
+    def RoomMove9(self):
+        self.switch_screen(self.MMWidget, self.HSWidget)
+    def RoomMove10(self):
+        self.switch_screen(self.HSWidget, self.MMWidget)
 
 if __name__ == "__main__":
     app = QApplication()
