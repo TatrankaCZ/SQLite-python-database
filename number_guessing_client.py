@@ -3,10 +3,11 @@
 
 from ctypes import alignment
 import sys
-from PySide6.QtCore import QRect, Qt, Slot, QCoreApplication
-from PySide6.QtGui import QFont, QPen
+from PySide6.QtCore import QRect, Qt, Slot, QCoreApplication, QThread, Signal, QObject, QTimer
+from PySide6.QtGui import QFont, QPen, QIntValidator
 from PySide6.QtWidgets import QStackedWidget, QApplication, QGridLayout, QLabel, QLayout, QTableWidget, QWidget, QListWidget, QListWidgetItem, \
-    QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGraphicsScene, QMainWindow, QTableWidgetItem
+    QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGraphicsScene, QMainWindow, QTableWidgetItem, QSizePolicy, QHeaderView
+
 import time
 import json
 
@@ -93,12 +94,7 @@ class WelcomeScreen(QHBoxLayout):
         start_menu = QWidget()
         start_menu.setLayout(start_layout)
 
-        # gentext = QWidget()
-        # # gentext.setLayout(self.generated_rooms)
-        # gentext.setVisible(False)
-
         self.addWidget(start_menu, 1)
-        # self.addWidget(gentext, 1)
         self.addWidget(main_widget, 4)
 
     def set_on_click(self, on_click):
@@ -108,9 +104,7 @@ class RoomSelection(QHBoxLayout):
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        #self.rooms = {}
-        #self.selected_room = None
-
+        # TODO - automaticky nacti mistnosti
         self.RoomSelectionLabel = QLabel("Seznam mistnosti", alignment=Qt.AlignCenter, font=QFont("calibri", 20))
 
         self.menu_widget = QListWidget()
@@ -142,11 +136,13 @@ class NumberRangeSelect(QVBoxLayout):
         
         self.minNumberText = QLabel("Minimalni cislo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
         self.minNumber = QLineEdit(font=QFont("calibri", 20))
-        self.minNumber.setPlaceholderText("1")
-        
+        self.minNumber.setValidator(QIntValidator(1, 100))
+        self.minNumber.setPlaceholderText(str(Widget.DEFAULT_MIN))
+
+        # TODO - add validator
         self.maxNumberText = QLabel("Maximalni cislo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
         self.maxNumber = QLineEdit(font=QFont("calibri", 20))
-        self.maxNumber.setPlaceholderText("11")
+        self.maxNumber.setPlaceholderText(str(Widget.DEFAULT_MAX))
 
         self.horizontalSplit = QHBoxLayout()
         self.verticalSplit1 = QVBoxLayout()
@@ -236,77 +232,80 @@ class MainMenu(QVBoxLayout):
         #self.addWidget(self.GameField)
 
 
+class FetchRoomsWorker(QThread):
+    rooms_fetched = Signal(list)
+
+    def run(self):
+        try:
+            response = requests.get("http://localhost:8081/rooms")
+            data = response.json()
+            self.rooms_fetched.emit(data)
+        except Exception as e:
+            print(f"Chyba při načítání dat: {e}")
+            self.rooms_fetched.emit([])
+
+
 class HighScore(QVBoxLayout):
+
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.table = QTableWidget()
+        self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.addWidget(self.table, stretch=1)  # přidá stretch faktor
+
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Room", "Score", "Hadane cislo"])
         self.table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
-
-        self.loadButton = QPushButton("Nacist mistnosti", font=QFont("calibri", 15))
-        self.loadButton.clicked.connect(self.load_rooms)
 
         self.Back = QPushButton("zpet", font=QFont("calibri", 15))
         self.Back.setMinimumSize(150, 50)
         self.Back.clicked.connect(app.RoomMove10)
         self.addWidget(self.table)
-        self.addWidget(self.loadButton)
         self.addWidget(self.Back)
+
+
+        QTimer.singleShot(0, self.update_table)  # Automatický fetch po zobrazení
+
+    def update_table(self):
+        self.worker = FetchRoomsWorker()
+        self.worker.rooms_fetched.connect(self.populate_table)
+        self.worker.start()
+
+    def populate_table(self, rooms):
+        self.table.setRowCount(len(rooms))
+        for i, room in enumerate(rooms):
+            room_id = QTableWidgetItem(str(room["id"]))
+            score = QTableWidgetItem(str(room["score"]))
+            guess = QTableWidgetItem(str(room["guess_number"]))
+
+            for item in (room_id, score, guess):
+                item.setTextAlignment(Qt.AlignCenter)
+
+            self.table.setItem(i, 0, room_id)
+            self.table.setItem(i, 1, score)
+            self.table.setItem(i, 2, guess)
+
 
     def fetch_rooms(self):
         parseRooms = requests.get(f"http://localhost:8081/rooms")
         output = parseRooms.json()
         return output
 
-    def load_rooms(self):
-        self.update_table()
-
-    def update_table(self):
-        rooms = self.fetch_rooms()
-        self.table.setRowCount(len(rooms))
-        for i, room in enumerate(rooms):
-            RoomID = QTableWidgetItem(str(room["id"]))
-            Score = QTableWidgetItem(str(room["score"]))
-            GuessNumber = QTableWidgetItem(str(room["guess_number"]))
-
-            RoomID.setTextAlignment(Qt.AlignCenter)
-            Score.setTextAlignment(Qt.AlignCenter)
-            GuessNumber.setTextAlignment(Qt.AlignCenter)
-
-            self.table.setItem(i, 0, RoomID)
-            self.table.setItem(i, 1, Score)
-            self.table.setItem(i, 2, GuessNumber)
 
 class Widget(QWidget):
+
+    DEFAULT_MIN = 1
+    DEFAULT_MAX = 10
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.rooms = {}
         self.selected_room = None
         self.selected_room_name = None
-
-        #self.menu_widget = QListWidget()
-        #self.menu_widget.itemClicked.connect(self.on_selected)
-
-        # self.welcome_font = QFont("calibri", 100)
-        #
-        # self.welcome = QLabel("Vitej!", alignment=Qt.AlignCenter)
-        # self.welcome.setFont(self.welcome_font)
-        # self.welcome_button = QPushButton("zacit")
-        # self.welcome_button.clicked.connect(self.start)
-
-        #self.generate = QPushButton("generovat")
-        #self.generate.clicked.connect(self.roomgen)
-        #self.generated_rooms = QVBoxLayout()
-        #self.generated_rooms.addWidget(self.menu_widget)
-        #self.generated_rooms.addWidget(self.generate)
-
-        ##
-        #self.gentext = QWidget()
-        #self.gentext.setLayout(self.generated_rooms)
-        #self.gentext.setVisible(False)
 
         self.text_widget = QLabel("vysledek", alignment=Qt.AlignCenter)
         self.line_edit = QLineEdit()
@@ -320,46 +319,12 @@ class Widget(QWidget):
 
         self.text = QVBoxLayout()
         self.text.addWidget(self.line_edit)
-        # self.text.addWidget(self.button)
 
         self.input_text = QWidget()
         self.input_text.setLayout(self.text)
-        # self.content_layout.addWidget(self.input_text)
-        ###
-        # self.main_widget = QWidget()
-        # self.main_widget.setLayout(self.content_layout)
-        # self.main_widget.setVisible(False)
-
-        ##
-        # self.start_layout = QVBoxLayout()
-        # self.spacer = QWidget()
-        # self.start_layout.addWidget(self.spacer)
-        # self.start_layout.addWidget(self.welcome)
-        # self.start_layout.addWidget(self.welcome_button)
-        # self.start_layout.addWidget(self.spacer)
-
-        ##
-        # self.StartMenu = QWidget()
-        # self.StartMenu.setLayout(self.start_layout)
-        #
-        # ####
-        # self.menu_layout = QHBoxLayout()
-        # self.menu_layout.addWidget(self.StartMenu, 1)
-        # self.menu_layout.addWidget(self.gentext, 1)
-        # self.menu_layout.addWidget(self.main_widget, 4)
-
-        #self.empty = QListWidget()
-        #
-        #self.EmptyLayout = QVBoxLayout()
-        #self.EmptyLayout.addWidget(self.empty)
-        #
-        #self.EmptyWidget = QWidget()
-        #self.EmptyWidget.setLayout(self.EmptyLayout)
-        #self.EmptyWidget.setAutoFillBackground(True)
 
         self.welcome_screen = WelcomeScreen(self)
-        #self.welcome_screen.set_on_click(self.RoomMove)
-        
+
         self.WSWidget = QWidget()
         self.WSWidget.setLayout(self.welcome_screen)
         self.WSWidget.setAutoFillBackground(True)
@@ -409,31 +374,16 @@ class Widget(QWidget):
 
         self.setLayout(self.MainLayout)
 
-    #def show_rooms(self):
-    #    #QLayout.removeWidget(self.welcome_screen)
-    #    #self.welcome_screen.deleteLater()
-    #    #self.MainLayout.removeWidget(self.WSWidget)
-    #    self.room_list_screen = RoomSelection(self)
-    #    self.RLWidget = QWidget()
-    #    self.RLWidget.setLayout(self.room_list_screen.generated_rooms)
-    #    #self.MainLayout.addWidget(self.RLWidget)
-    #    self.MainLayout.replaceWidget(self.WSWidget, self.RLWidget)
-    #    #self.setLayout(room_list_screen.generated_rooms)
-    #    #self.update(0, 0, 1920, 1080)
-    #    #self.show()
-    #    print("funguje")
-
     def switch_screen(self, before, to):
         before.hide()
         to.show()
-        #self.MainLayout.replaceWidget(before, to)
-        #self.MainLayout.replaceWidget(self.EmptyWidget, to)
-        #self.MainLayout = QWidget()
-        #self.MainLayout.setLayout(self.WSWidget, self.MMWidget)
-        
+
     def roomgen(self):
-        min_number = self.number_range_screen.minNumber.text()
-        max_number = self.number_range_screen.maxNumber.text()
+        min_number = self.number_range_screen.minNumber.text() or self.DEFAULT_MIN
+        max_number = self.number_range_screen.maxNumber.text() or self.DEFAULT_MAX
+
+        # TODO - opravit obracenou odpoved vetsi/mensi + testy
+
         parse = requests.post("http://localhost:8081/create", json = {"min": min_number, "max": max_number})
         room_number = len(self.rooms) + 1
         room_name = f"mistnost {room_number}"
@@ -451,6 +401,7 @@ class Widget(QWidget):
         parse = requests.get(f"http://localhost:8081/guess?room_id={self.selected_room}&number={guessed_number}")
         print("pressed")
         current_text = self.GFLayout.text_widget.text()
+
         # if parse.text == "MENSI":
         #    msg = "Hledane cislo je mensi"
         # elif parse.text == "VETSI":
