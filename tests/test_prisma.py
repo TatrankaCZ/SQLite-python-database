@@ -2,7 +2,7 @@ import random
 import os
 
 import pytest
-from . import generate_test_db
+from tests import generate_db_test
 from client_test import Prisma
 from dotenv import load_dotenv
 
