@@ -119,7 +119,7 @@ class RoomSelection(QHBoxLayout):
 
         self.Back = QPushButton("zpet", font=QFont("calibri", 15))
         self.Back.setMinimumSize(150, 30)
-        self.Back.clicked.connect(app.RoomMove4)#(app.MMWidget, app.RLWidget))
+        self.Back.clicked.connect(app.RoomMove4)
         
         self.generated_rooms.addWidget(self.RoomSelectionLabel)
         self.generated_rooms.addWidget(self.menu_widget)
@@ -131,6 +131,7 @@ class RoomSelection(QHBoxLayout):
 class NumberRangeSelect(QVBoxLayout):
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.app = app
         
         self.NumberRangeSelectLabel = QLabel("Vytvorit mistnost", alignment=Qt.AlignCenter, font=QFont("calibri", 30))
         
@@ -139,10 +140,16 @@ class NumberRangeSelect(QVBoxLayout):
         self.minNumber.setValidator(QIntValidator(1, 100))
         self.minNumber.setPlaceholderText(str(Widget.DEFAULT_MIN))
 
-        # TODO - add validator
+        # TODO - add validator [HOTOVO? Pat a Mat řešení]
         self.maxNumberText = QLabel("Maximalni cislo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
         self.maxNumber = QLineEdit(font=QFont("calibri", 20))
+        #self.maxNumber.setValidator(QIntValidator(self.minNumber + 1, 101))
         self.maxNumber.setPlaceholderText(str(Widget.DEFAULT_MAX))
+
+        self.maxNumberError = QLabel("")
+        self.maxNumberError.setStyleSheet("color: red;")
+        self.maxNumberError.setFont(QFont("calibri", 14))
+        self.maxNumberError.setAlignment(Qt.AlignCenter)
 
         self.horizontalSplit = QHBoxLayout()
         self.verticalSplit1 = QVBoxLayout()
@@ -168,11 +175,27 @@ class NumberRangeSelect(QVBoxLayout):
 
         self.generate = QPushButton("generovat mistnost", font=QFont("calibri", 15))
         self.generate.setMinimumSize(150, 30)
-        self.generate.clicked.connect(app.roomgen)
+
+        self.Back = QPushButton("zpet", font=QFont("calibri", 15))
+        self.Back.setMinimumSize(150, 30)
+        self.Back.clicked.connect(app.RoomMove8)
+        
+        self.generate.clicked.connect(self.validateMaxNumber)
 
         self.addWidget(self.NumberRangeSelectLabel)
         self.addWidget(self.horizontalSplitWidget)
         self.addWidget(self.generate)
+        self.addWidget(self.Back)
+        self.addWidget(self.maxNumberError)
+
+        
+
+    def validateMaxNumber(self):
+        if int(self.maxNumber.text()) <= int(self.minNumber.text()):
+            self.maxNumberError.setText("Maximalni cislo musi byt vetsi nez minimalni")
+        else:
+            self.maxNumberError.setText("")
+            self.app.roomgen()
 
 class GameField(QVBoxLayout):
      def __init__(self, app, *args, **kwargs):
@@ -202,7 +225,7 @@ class GameField(QVBoxLayout):
 
         self.Back = QPushButton("zpet", font=QFont("calibri", 15))
         self.Back.setMinimumSize(150, 40)
-        self.Back.clicked.connect(app.RoomMove5)#(app.MMWidget, app.RLWidget))
+        self.Back.clicked.connect(app.RoomMove5)
 
         self.addWidget(self.GameFieldLabel)
         self.addWidget(self.text_widget)
@@ -382,7 +405,7 @@ class Widget(QWidget):
         min_number = self.number_range_screen.minNumber.text() or self.DEFAULT_MIN
         max_number = self.number_range_screen.maxNumber.text() or self.DEFAULT_MAX
 
-        # TODO - opravit obracenou odpoved vetsi/mensi + testy
+        # TODO - opravit obracenou odpoved vetsi/mensi + testy [HOTOVO]
 
         parse = requests.post("http://localhost:8081/create", json = {"min": min_number, "max": max_number})
         room_number = len(self.rooms) + 1
@@ -411,11 +434,11 @@ class Widget(QWidget):
         answer = parse.json()
         match answer["status"]:
             case "bigger":
-                msg = "Zadane cislo je vetsi"
+                msg = f"{guessed_number} je vetsi, nez hadane cislo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
             case "lesser":
-                msg = "Zadane cislo je mensi"
+                msg = f"{guessed_number} je mensi, nez hadane cislo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
             case "found":
@@ -429,7 +452,7 @@ class Widget(QWidget):
                 #self.main_widget.setVisible(False)
                 # self.text_widget.setText("output")
             case "NaN":
-                msg = f"\"{guessed_number}\" neni cislo"
+                msg = f"{guessed_number} neni cislo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
 
