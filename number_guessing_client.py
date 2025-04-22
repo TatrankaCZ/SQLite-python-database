@@ -287,7 +287,6 @@ class HighScore(QVBoxLayout):
         self.Back = QPushButton("zpet", font=QFont("calibri", 15))
         self.Back.setMinimumSize(150, 50)
         self.Back.clicked.connect(app.RoomMove10)
-        self.addWidget(self.table)
         self.addWidget(self.Back)
 
 
