@@ -1,4 +1,5 @@
 # Server
+from calendar import c
 import os
 
 from client import Prisma
@@ -29,13 +30,14 @@ async def create_room(request):  # pokud je vyzadovan callback argument (puvodne
     max_ = int(post_data["max"])
 
     hadane_cislo = random.randrange(min_, max_)
-    # TODO - rozsah hodnot bude endpoint prijimat v POST datech
+    # TODO - rozsah hodnot bude endpoint prijimat v POST datech [HOTOVO]
 
     room = await request.app.db.room.create({
         'guess_number': hadane_cislo,
         'score': 10,
         'min_number': min_,
-        'max_number': max_
+        'max_number': max_,
+        'completed': False
     })
     return web.json_response(text=str(room.id), status=201)
 
@@ -47,7 +49,8 @@ async def list_rooms(request):
         out.append({
             "id": room.id,
             'guess_number': room.guess_number,
-            "score": room.score
+            "score": room.score,
+            "completed": room.completed
         })
     # TODO na klientu osetri chyby serveru
     return web.json_response(out)
@@ -91,7 +94,8 @@ async def guess_number(request):
     out = {
         "status": answer,
     }
-    await request.app.db.room.update(where={"id": room_id}, data={"score": room.score})
+    await request.app.db.room.update(where={"id": room_id}, data={"score": room.score, "completed": True})
+
 
     return web.json_response(out)
 
