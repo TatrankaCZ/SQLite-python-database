@@ -23,4 +23,5 @@ model Room {
   score Int @default(100)
   min_number Int @default(1)
   max_number Int @default(11)
+  completed Boolean @default(false)
 }
