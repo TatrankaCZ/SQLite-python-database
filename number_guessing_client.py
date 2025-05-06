@@ -11,7 +11,6 @@ from PySide6.QtWidgets import QStackedWidget, QApplication, QGridLayout, QLabel,
 import time
 import json
 
-
 import requests
 from bs4 import BeautifulSoup
 
@@ -104,7 +103,8 @@ class RoomSelection(QHBoxLayout):
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # TODO - automaticky nacti mistnosti
+        # TODO automaticky nacti mistnosti
+        self.app = app
         self.RoomSelectionLabel = QLabel("Seznam mistnosti", alignment=Qt.AlignCenter, font=QFont("calibri", 20))
 
         self.menu_widget = QListWidget()
@@ -127,6 +127,34 @@ class RoomSelection(QHBoxLayout):
         self.generated_rooms.addWidget(self.Back)
         
         self.gentext.setLayout(self.generated_rooms)
+
+        self.addWidget(self.gentext)
+
+        self.loadRooms()
+
+    def loadRooms(self):
+        try:
+            response = requests.get("http://localhost:8081/rooms")
+            if response.status_code == 200:
+                rooms = response.json()
+                self.menu_widget.clear()
+                for room in rooms:
+                    if not room["completed"]:
+                        roomName = f"Místnost {room['id']}"
+                        item = QListWidgetItem(roomName)
+                        item.setTextAlignment(Qt.AlignCenter)
+                        item.setFont(QFont("calibri", 15))
+                        self.menu_widget.addItem(item)
+                        self.app.rooms[roomName] = {
+                            "ID": room['id'],
+                            "score": room['score'],
+                            "guess_number": room['guess_number']
+                        }
+                        self.app.rooms[roomName]["OUTPUT"] = roomName + "\nvysledek"
+            else:
+                print("Nepodařilo se načíst místnoti.")
+        except Exception as e:
+            print(f"Chyba při načítání místností: {e}")
 
 class NumberRangeSelect(QVBoxLayout):
     def __init__(self, app, *args, **kwargs):
@@ -191,7 +219,9 @@ class NumberRangeSelect(QVBoxLayout):
         
 
     def validateMaxNumber(self):
-        if int(self.maxNumber.text()) <= int(self.minNumber.text()):
+        min_number = int(self.minNumber.text()) if self.minNumber.text().isnumeric() else self.app.DEFAULT_MIN
+        max_number = int(self.maxNumber.text()) if self.maxNumber.text().isnumeric() else self.app.DEFAULT_MAX
+        if max_number <= min_number:
             self.maxNumberError.setText("Maximalni cislo musi byt vetsi nez minimalni")
         else:
             self.maxNumberError.setText("")
@@ -275,13 +305,13 @@ class HighScore(QVBoxLayout):
 
         self.table = QTableWidget()
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.addWidget(self.table, stretch=1)  # přidá stretch faktor
+        self.addWidget(self.table, stretch=1) 
 
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-        self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Room", "Score", "Hadane cislo"])
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Room", "Score", "Hadane cislo", "Dokonceno"])
         self.table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
 
         self.Back = QPushButton("zpet", font=QFont("calibri", 15))
@@ -303,13 +333,15 @@ class HighScore(QVBoxLayout):
             room_id = QTableWidgetItem(str(room["id"]))
             score = QTableWidgetItem(str(room["score"]))
             guess = QTableWidgetItem(str(room["guess_number"]))
+            completed = QTableWidgetItem(str(room["completed"]))
 
-            for item in (room_id, score, guess):
+            for item in (room_id, score, guess, completed):
                 item.setTextAlignment(Qt.AlignCenter)
 
             self.table.setItem(i, 0, room_id)
             self.table.setItem(i, 1, score)
             self.table.setItem(i, 2, guess)
+            self.table.setItem(i, 3, completed)
 
 
     def fetch_rooms(self):
@@ -401,13 +433,13 @@ class Widget(QWidget):
         to.show()
 
     def roomgen(self):
-        min_number = self.number_range_screen.minNumber.text() or self.DEFAULT_MIN
-        max_number = self.number_range_screen.maxNumber.text() or self.DEFAULT_MAX
+        min_number = int(self.number_range_screen.minNumber.text()) if self.number_range_screen.minNumber.text().isnumeric() else self.DEFAULT_MIN
+        max_number = int(self.number_range_screen.maxNumber.text()) if self.number_range_screen.maxNumber.text().isnumeric() else self.DEFAULT_MAX
 
         # TODO - opravit obracenou odpoved vetsi/mensi + testy [HOTOVO]
 
         parse = requests.post("http://localhost:8081/create", json = {"min": min_number, "max": max_number})
-        room_number = len(self.rooms) + 1
+        room_number = parse.text
         room_name = f"mistnost {room_number}"
         self.rooms[room_name] = {}
         self.rooms[room_name]["ID"] = parse.text
@@ -489,6 +521,7 @@ class Widget(QWidget):
     def RoomMove8(self):
         self.switch_screen(self.NRWidget, self.RLWidget)
     def RoomMove9(self):
+        self.HSLayout.update_table()
         self.switch_screen(self.MMWidget, self.HSWidget)
     def RoomMove10(self):
         self.switch_screen(self.HSWidget, self.MMWidget)
