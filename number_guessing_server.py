@@ -78,16 +78,22 @@ async def guess_number(request):
     try:
         if int(number) == room.guess_number:
             answer = "found"
+
+        elif room.score <= 1:
+            answer = "lost"
+            room.completed = True
+            room.score = 0
             
         elif int(number) > room.guess_number:
             answer = "bigger"
             if room.score > 0:
                 room.score -= 1
             
-        else:
+        elif int(number) < room.guess_number:
             answer = "lesser"
             if room.score > 0:
                 room.score -= 1
+
     except:
         answer = "NaN"
 
