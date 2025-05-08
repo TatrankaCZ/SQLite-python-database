@@ -276,13 +276,19 @@ class MainMenu(QVBoxLayout):
         self.HighScore.setMinimumSize(150, 50)
         self.HighScore.clicked.connect(app.RoomMove9)
 
-        #self.GameField = QPushButton("Hraci pole")
-        #self.GameField.clicked.connect(app.RoomMove3)#(app.MMWidget, app.RLWidget))
+        self.QuitButton = QPushButton("Ukoncit", font=QFont("calibri", 15))
+        self.QuitButton.setMinimumSize(150, 50)
+        self.QuitButton.clicked.connect(self.quitApp)
         
         self.addWidget(self.MainMenuLabel)
         self.addWidget(self.RoomList)
         self.addWidget(self.HighScore)
-        #self.addWidget(self.GameField)
+        self.addWidget(self.QuitButton)
+
+    def quitApp(self):
+        QCoreApplication.quit()
+        sys.exit(0)
+
 
 
 class FetchRoomsWorker(QThread):
@@ -436,12 +442,11 @@ class Widget(QWidget):
         min_number = int(self.number_range_screen.minNumber.text()) if self.number_range_screen.minNumber.text().isnumeric() else self.DEFAULT_MIN
         max_number = int(self.number_range_screen.maxNumber.text()) if self.number_range_screen.maxNumber.text().isnumeric() else self.DEFAULT_MAX
 
-        # TODO - opravit obracenou odpoved vetsi/mensi + testy [HOTOVO]
-
         parse = requests.post("http://localhost:8081/create", json = {"min": min_number, "max": max_number})
         room_number = parse.text
         room_name = f"mistnost {room_number}"
         self.rooms[room_name] = {}
+        self.rooms[room_name]["GUESSLOG"] = []
         self.rooms[room_name]["ID"] = parse.text
         self.rooms[room_name]["OUTPUT"] = room_name + "\nvysledek"
         item = QListWidgetItem(room_name)
@@ -452,16 +457,18 @@ class Widget(QWidget):
 
     def guess(self):
         guessed_number = self.GFLayout.line_edit.text()
-        parse = requests.get(f"http://localhost:8081/guess?room_id={self.selected_room}&number={guessed_number}")
-        print("pressed")
         current_text = self.GFLayout.text_widget.text()
+        print("pressed")
+        if guessed_number in self.rooms[self.selected_room_name]["GUESSLOG"]:
+            msg = f"Cislo {guessed_number} jsi uz hadal"
+            self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
+            self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
+            self.GFLayout.line_edit.setText("")
+            return
+        self.rooms[self.selected_room_name]["GUESSLOG"].append(guessed_number)
 
-        # if parse.text == "MENSI":
-        #    msg = "Hledane cislo je mensi"
-        # elif parse.text == "VETSI":
-        #    msg = "Hledane cislo je vetsi"
-        # else:
-        #    ...
+        parse = requests.get(f"http://localhost:8081/guess?room_id={self.selected_room}&number={guessed_number}")
+
         answer = parse.json()
         match answer["status"]:
             case "bigger":
@@ -480,8 +487,14 @@ class Widget(QWidget):
                 self.room_list_screen.menu_widget.takeItem(self.room_list_screen.menu_widget.currentRow())
                 time.sleep(5)
                 self.RoomMove5()
-                #self.main_widget.setVisible(False)
-                # self.text_widget.setText("output")
+            case "lost":
+                msg = "Nedokazal jsi uhodnout cislo. Budes nasledne navracen do menu"
+                self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
+                self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
+                QCoreApplication.processEvents()
+                self.room_list_screen.menu_widget.takeItem(self.room_list_screen.menu_widget.currentRow())
+                time.sleep(5)
+                self.RoomMove5()
             case "NaN":
                 msg = f"{guessed_number} neni cislo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
