@@ -24,4 +24,14 @@ model Room {
   min_number Int @default(1)
   max_number Int @default(11)
   completed Boolean @default(false)
+  logs GuessLog[]
+}
+
+model GuessLog {
+  id        Int      @id @default(autoincrement())
+  room      Room     @relation(fields: [roomId], references: [id])
+  roomId    Int
+  guess     Int
+  result    String   // 'found', 'lesser', 'bigger', 'lost'
+  createdAt DateTime @default(now())
 }
