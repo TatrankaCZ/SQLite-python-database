@@ -6,7 +6,7 @@ from tests import generate_db_test
 from client_test import Prisma
 from dotenv import load_dotenv
 
-from number_guessing_server import create_app, on_cleanup
+from number_guessing_server import create_app, on_cleanup, guess_number
 
 
 async def on_startup(app):
@@ -25,6 +25,18 @@ async def app():
 async def cli(aiohttp_client, app):
     return await aiohttp_client(app)
 
+@pytest.fixture
+def create_room(cli):
+    async def inner(expected_number=random.randint(1, 100)):
+        room = await cli.app.db.room.create({
+            'guess_number': expected_number,
+            'score': 10,
+            'min_number': 1,
+            'max_number': 100,
+            'completed': False
+        })
+        return room
+    return inner
 
 async def test_create_room(cli):
     resp = await cli.post('/rooms', json={
@@ -38,19 +50,6 @@ async def test_create_room(cli):
     room = await cli.app.db.room.find_unique(where={"id": int(text)})
     assert room.min_number == 1
     assert room.max_number == 100
-
-
-@pytest.fixture
-def create_room(cli):
-    async def inner(expected_number=random.randint(1, 100)):
-        room = await cli.app.db.room.create({
-            'guess_number': expected_number,
-            'score': 10,
-            'min_number': 1,
-            'max_number': 100
-        })
-        return room
-    return inner
 
 
 async def test_list_rooms(cli, create_room):
@@ -94,21 +93,23 @@ async def test_invalid_endpoint(cli):
 async def test_guess_non_number(cli, create_room):
     room = await create_room()
     # TODO - tady chybi vytvoreni pokoje
-    resp = await cli.get('/guess?number=x&room_id=1')
+    resp = await cli.get('/guess?number=x&room_id=')
     assert resp.status == 400 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
     #assert await resp.json() == "400: Number must be an integer"
     
 
-async def test_guess_negative_number(cli):
+async def test_guess_negative_number(cli, create_room):
     # TODO - tady chybi vytvoreni pokoje
+    room = await create_room()
     number = -10
     resp = await cli.get('/guess?number=' + str(number) + '&room_id=1')
     assert resp.status == 400
     #assert await resp.json() == "400: Number must be between 0 and 10"
     
 
-async def test_guess_empty_integer(cli):
+async def test_guess_empty_integer(cli, create_room):
     # TODO - tady chybi vytvoreni pokoje
+    room = await create_room()
     resp = await cli.get('/guess?number=&room_id=1')
     assert resp.status == 400, await resp.text()
     #assert await resp.json() == "400: Number must be an integer"
@@ -137,12 +138,34 @@ async def test_guess_empty_room(cli):
     #assert await resp.json() == "400: Room doesn't exist"
 
 
-async def test_guess_special_character(cli):
+async def test_guess_special_character(cli, create_room):
+    room = await create_room()
     characterList = ["@", "#", "&", "\\", "/", "|", "*", "!", "%", "$", "<", ">"]
     for i in characterList:
         resp = await cli.get('/guess?number=' + str(i) + '&room_id=1')    
     assert resp.status == 400
     #assert await resp.json() == "400: Number must be an integer"
+
+
+async def test_score_decrease(cli, create_room):
+    room = await create_room()
+    resp = await cli.get('/guess?number=5&room_id=' + str(room.id))
+    assert resp.status == 200
+    guess_data = await resp.json()
+    assert guess_data["status"] != "found"
+    roomScore = await cli.app.db.room.find_unique(where={"id": int(room.id)})
+    roomScore.score == 9
+    #assert guess_data["score"] == roomScore.score - 1
+
+
+async def test_guesslog(cli, create_room):
+    room = await create_room()
+    resp = await cli.get('/guess?number=5&room_id=' + str(room.id))
+    assert resp.status == 200
+    guess_data = await resp.json()
+    assert guess_data["status"] != "found"
+
+
 
 
 
