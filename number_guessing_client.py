@@ -1,6 +1,7 @@
 
 # client-test 4 (nejnovejsi)
 
+import code
 from ctypes import alignment
 import sys
 from PySide6.QtCore import QRect, Qt, Slot, QCoreApplication, QThread, Signal, QObject, QTimer
@@ -71,17 +72,22 @@ class WelcomeScreen(QHBoxLayout):
 
         welcome_font = QFont("calibri", 100)
 
-        welcome = QLabel("Vitej!", alignment=Qt.AlignCenter)
+        welcome = QLabel("Vítej!", alignment=Qt.AlignCenter)
         welcome.setFont(welcome_font)
-        self.welcome_button = QPushButton("zacit", font=QFont("calibri", 15))
+        self.welcome_button = QPushButton("Začít", font=QFont("calibri", 15))
         self.welcome_button.setMinimumSize(150, 50)
-        self.welcome_button.clicked.connect(app.RoomMove1)#(app.WSWidget, app.MMWidget))
+        self.welcome_button.clicked.connect(app.RoomMove_WelcomeScreenToMainMenu)
+
+        self.login_button = QPushButton("Přihlásit se", font=QFont("calibri", 15))
+        self.login_button.setMinimumSize(150, 50)
+        self.login_button.clicked.connect(app.RoomMove_WelcomeScreenToLogin)
 
         start_layout.addWidget(welcome)
         start_layout.addWidget(self.welcome_button)
+        start_layout.addWidget(self.login_button)
         start_layout.addWidget(spacer)
 
-        text_widget = QLabel("vysledek", alignment=Qt.AlignCenter)
+        text_widget = QLabel("výsledek", alignment=Qt.AlignCenter)
 
         content_layout = QVBoxLayout()
         content_layout.addWidget(text_widget)
@@ -99,27 +105,74 @@ class WelcomeScreen(QHBoxLayout):
     def set_on_click(self, on_click):
         self.welcome_button.clicked.connect(on_click)
 
+class LoginScreen(QVBoxLayout):
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.app = app
+        spacer = QWidget()
+
+        self.LoginLabel = QLabel("Přihlášení", alignment=Qt.AlignCenter, font=QFont("calibri", 50))
+
+        self.Email = QLineEdit(alignment=Qt.AlignCenter, font=QFont("calibri", 20))
+        self.Email.setPlaceholderText("Zadejte e-mail")
+
+        self.EmailCode = QLineEdit(alignment=Qt.AlignCenter, font=QFont("calibri", 20))
+        self.EmailCode.setPlaceholderText("Zadejte kód z e-mailu")
+        self.EmailCode.hide()
+
+        self.Confirm = QPushButton("Potvrdit", font=QFont("calibri", 15))
+        self.Confirm.setMinimumSize(150, 30)
+        self.Confirm.clicked.connect(self.OnEmailConfirm)
+
+        self.Back = QPushButton("zpět", font=QFont("calibri", 15))
+        self.Back.setMinimumSize(150, 30)
+        self.Back.clicked.connect(app.RoomMove_LoginToWelcomeScreen)
+
+        self.addWidget(self.LoginLabel)
+        self.addWidget(self.Email)
+        self.addWidget(self.EmailCode)
+        self.addWidget(self.Confirm)
+        self.addWidget(self.Back)
+        self.addWidget(spacer)
+
+    def OnEmailConfirm(self):
+        email = self.Email.text()
+        code = self.EmailCode.text()
+        if not email:
+            print("Zadejte e-mail.")
+            return
+        try:
+            response = requests.post("http://localhost:8081/login", json={"email": email, "code": code})
+            if response.status_code == 200:
+                print("E-mail odeslán.")
+                self.EmailCode.show()
+            else:
+                print("Chyba při odesílání e-mailu:", response.text)
+        except Exception as e:
+            print(f"Chyba při komunikaci se serverem: {e}")
+
+
 class RoomSelection(QHBoxLayout):
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # TODO automaticky nacti mistnosti
         self.app = app
-        self.RoomSelectionLabel = QLabel("Seznam mistnosti", alignment=Qt.AlignCenter, font=QFont("calibri", 20))
+        self.RoomSelectionLabel = QLabel("Seznam místností", alignment=Qt.AlignCenter, font=QFont("calibri", 20))
 
         self.menu_widget = QListWidget()
         self.menu_widget.itemClicked.connect(app.on_selected)
 
         self.gentext = QWidget()
         
-        self.generate = QPushButton("generovat mistnost", font=QFont("calibri", 15))
+        self.generate = QPushButton("generovat místnost", font=QFont("calibri", 15))
         self.generate.setMinimumSize(150, 30)
-        self.generate.clicked.connect(app.RoomMove7)
+        self.generate.clicked.connect(app.RoomMove_RoomListToNumberRange)
         self.generated_rooms = QVBoxLayout()
 
-        self.Back = QPushButton("zpet", font=QFont("calibri", 15))
+        self.Back = QPushButton("zpět", font=QFont("calibri", 15))
         self.Back.setMinimumSize(150, 30)
-        self.Back.clicked.connect(app.RoomMove4)
+        self.Back.clicked.connect(app.RoomMove_RoomListToMainMenu)
         
         self.generated_rooms.addWidget(self.RoomSelectionLabel)
         self.generated_rooms.addWidget(self.menu_widget)
@@ -148,7 +201,8 @@ class RoomSelection(QHBoxLayout):
                         self.app.rooms[roomName] = {
                             "ID": room['id'],
                             "score": room['score'],
-                            "guess_number": room['guess_number']
+                            "guess_number": room['guess_number'],
+                            "GUESSLOG": []
                         }
                         self.app.rooms[roomName]["OUTPUT"] = roomName + "\nvysledek"
             else:
@@ -161,15 +215,15 @@ class NumberRangeSelect(QVBoxLayout):
         super().__init__(*args, **kwargs)
         self.app = app
         
-        self.NumberRangeSelectLabel = QLabel("Vytvorit mistnost", alignment=Qt.AlignCenter, font=QFont("calibri", 30))
+        self.NumberRangeSelectLabel = QLabel("Vytvořit místnost", alignment=Qt.AlignCenter, font=QFont("calibri", 30))
         
-        self.minNumberText = QLabel("Minimalni cislo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
+        self.minNumberText = QLabel("Minimální číslo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
         self.minNumber = QLineEdit(font=QFont("calibri", 20))
         self.minNumber.setValidator(QIntValidator(1, 100))
         self.minNumber.setPlaceholderText(str(Widget.DEFAULT_MIN))
 
         # TODO - add validator [HOTOVO? Pat a Mat řešení]
-        self.maxNumberText = QLabel("Maximalni cislo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
+        self.maxNumberText = QLabel("Maximální číslo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
         self.maxNumber = QLineEdit(font=QFont("calibri", 20))
         #self.maxNumber.setValidator(QIntValidator(self.minNumber + 1, 101))
         self.maxNumber.setPlaceholderText(str(Widget.DEFAULT_MAX))
@@ -201,12 +255,12 @@ class NumberRangeSelect(QVBoxLayout):
 
         self.horizontalSplitWidget.setLayout(self.horizontalSplit)
 
-        self.generate = QPushButton("generovat mistnost", font=QFont("calibri", 15))
+        self.generate = QPushButton("generovat místnost", font=QFont("calibri", 15))
         self.generate.setMinimumSize(150, 30)
 
-        self.Back = QPushButton("zpet", font=QFont("calibri", 15))
+        self.Back = QPushButton("zpět", font=QFont("calibri", 15))
         self.Back.setMinimumSize(150, 30)
-        self.Back.clicked.connect(app.RoomMove8)
+        self.Back.clicked.connect(app.RoomMove_NumberRangeToRoomList)
         
         self.generate.clicked.connect(self.validateMaxNumber)
 
@@ -222,7 +276,7 @@ class NumberRangeSelect(QVBoxLayout):
         min_number = int(self.minNumber.text()) if self.minNumber.text().isnumeric() else self.app.DEFAULT_MIN
         max_number = int(self.maxNumber.text()) if self.maxNumber.text().isnumeric() else self.app.DEFAULT_MAX
         if max_number <= min_number:
-            self.maxNumberError.setText("Maximalni cislo musi byt vetsi nez minimalni")
+            self.maxNumberError.setText("Maximální číslo musí být větší než minimální")
         else:
             self.maxNumberError.setText("")
             self.app.roomgen()
@@ -231,11 +285,11 @@ class GameField(QVBoxLayout):
      def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.GameFieldLabel = QLabel("Herni pole", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
+        self.GameFieldLabel = QLabel("Herní pole", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
 
-        self.text_widget = QLabel("vysledek", alignment=Qt.AlignCenter, font=QFont("calibri", 15))
+        self.text_widget = QLabel("výsledek", alignment=Qt.AlignCenter, font=QFont("calibri", 15))
         self.line_edit = QLineEdit(font=QFont("calibri", 15))
-        self.line_edit.setPlaceholderText("Zadejte hadane cislo")
+        self.line_edit.setPlaceholderText("Zadejte hádané číslo")
         self.line_edit.setMinimumSize(150, 30)
         self.line_edit.returnPressed.connect(app.guess)
 
@@ -253,9 +307,9 @@ class GameField(QVBoxLayout):
         self.input_text = QWidget()
         self.input_text.setLayout(self.text)
 
-        self.Back = QPushButton("zpet", font=QFont("calibri", 15))
+        self.Back = QPushButton("zpět", font=QFont("calibri", 15))
         self.Back.setMinimumSize(150, 40)
-        self.Back.clicked.connect(app.RoomMove5)
+        self.Back.clicked.connect(app.RoomMove_GameFieldToMainMenu)
 
         self.addWidget(self.GameFieldLabel)
         self.addWidget(self.text_widget)
@@ -266,17 +320,17 @@ class MainMenu(QVBoxLayout):
     def __init__(self, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        self.MainMenuLabel = QLabel("Hlavni menu", alignment=Qt.AlignCenter, font=QFont("calibri", 48))
+        self.MainMenuLabel = QLabel("Hlavní menu", alignment=Qt.AlignCenter, font=QFont("calibri", 48))
 
-        self.RoomList = QPushButton("Seznam mistnosti", font=QFont("calibri", 15))
+        self.RoomList = QPushButton("Seznam místností", font=QFont("calibri", 15))
         self.RoomList.setMinimumSize(150, 50)
-        self.RoomList.clicked.connect(app.RoomMove2)
+        self.RoomList.clicked.connect(app.RoomMove_MainMenuToRoomList)
 
         self.HighScore = QPushButton("Score", font=QFont("calibri", 15))
         self.HighScore.setMinimumSize(150, 50)
-        self.HighScore.clicked.connect(app.RoomMove9)
+        self.HighScore.clicked.connect(app.RoomMove_MainMenuToHighscore)
 
-        self.QuitButton = QPushButton("Ukoncit", font=QFont("calibri", 15))
+        self.QuitButton = QPushButton("Ukončit", font=QFont("calibri", 15))
         self.QuitButton.setMinimumSize(150, 50)
         self.QuitButton.clicked.connect(self.quitApp)
         
@@ -320,9 +374,9 @@ class HighScore(QVBoxLayout):
         self.table.setHorizontalHeaderLabels(["Room", "Score", "Hadane cislo", "Dokonceno"])
         self.table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
 
-        self.Back = QPushButton("zpet", font=QFont("calibri", 15))
+        self.Back = QPushButton("zpět", font=QFont("calibri", 15))
         self.Back.setMinimumSize(150, 50)
-        self.Back.clicked.connect(app.RoomMove10)
+        self.Back.clicked.connect(app.RoomMove_HighscoreToMainMenu)
         self.addWidget(self.Back)
 
 
@@ -367,7 +421,7 @@ class Widget(QWidget):
         self.selected_room = None
         self.selected_room_name = None
 
-        self.text_widget = QLabel("vysledek", alignment=Qt.AlignCenter)
+        self.text_widget = QLabel("výsledek", alignment=Qt.AlignCenter)
         self.line_edit = QLineEdit()
         self.line_edit.returnPressed.connect(self.guess)
 
@@ -424,6 +478,13 @@ class Widget(QWidget):
         self.HSWidget.setAutoFillBackground(True)
         self.HSWidget.hide()
 
+        self.LSLayout = LoginScreen(self)
+
+        self.LSWidget = QWidget()
+        self.LSWidget.setLayout(self.LSLayout)
+        self.LSWidget.setAutoFillBackground(True)
+        self.LSWidget.hide()
+
         self.MainLayout = QHBoxLayout()
         self.MainLayout.addWidget(self.WSWidget)
         self.MainLayout.addWidget(self.MMWidget)
@@ -431,6 +492,7 @@ class Widget(QWidget):
         self.MainLayout.addWidget(self.NRWidget)
         self.MainLayout.addWidget(self.GFWidget)
         self.MainLayout.addWidget(self.HSWidget)
+        self.MainLayout.addWidget(self.LSWidget)
 
         self.setLayout(self.MainLayout)
 
@@ -444,7 +506,7 @@ class Widget(QWidget):
 
         parse = requests.post("http://localhost:8081/create", json = {"min": min_number, "max": max_number})
         room_number = parse.text
-        room_name = f"mistnost {room_number}"
+        room_name = f"místnost {room_number}"
         self.rooms[room_name] = {}
         self.rooms[room_name]["GUESSLOG"] = []
         self.rooms[room_name]["ID"] = parse.text
@@ -453,48 +515,53 @@ class Widget(QWidget):
         item.setTextAlignment(Qt.AlignCenter)
         item.setFont(QFont("calibri", 15))
         self.room_list_screen.menu_widget.addItem(item)
-        self.RoomMove8()
+        self.RoomMove_NumberRangeToRoomList()
 
     def guess(self):
         guessed_number = self.GFLayout.line_edit.text()
         current_text = self.GFLayout.text_widget.text()
         print("pressed")
+
         if guessed_number in self.rooms[self.selected_room_name]["GUESSLOG"]:
-            msg = f"Cislo {guessed_number} jsi uz hadal"
+            msg = f"Číslo {guessed_number} jsi už hádal"
             self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
             self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
             self.GFLayout.line_edit.setText("")
             return
-        self.rooms[self.selected_room_name]["GUESSLOG"].append(guessed_number)
-
+        
         parse = requests.get(f"http://localhost:8081/guess?room_id={self.selected_room}&number={guessed_number}")
-
-        answer = parse.json()
+        self.rooms[self.selected_room_name]["GUESSLOG"].append(guessed_number)
+        
+        try:
+            answer = parse.json()
+        except Exception as e:
+            print("Server nevrátil validní JSON. Odpověď:\n", parse.text)
+            return
         match answer["status"]:
             case "bigger":
-                msg = f"{guessed_number} je vetsi, nez hadane cislo"
+                msg = f"{guessed_number} je větší, než hádané číslo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
             case "lesser":
-                msg = f"{guessed_number} je mensi, nez hadane cislo"
+                msg = f"{guessed_number} je menší, než hádané číslo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
             case "found":
-                msg = "Uhodl jsi cislo. Budes nasledne navracen do menu"
+                msg = "Uhodl jsi číslo. Budeš následně navrácen do menu"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
                 QCoreApplication.processEvents()
                 self.room_list_screen.menu_widget.takeItem(self.room_list_screen.menu_widget.currentRow())
                 time.sleep(5)
-                self.RoomMove5()
+                self.RoomMove_GameFieldToMainMenu()
             case "lost":
-                msg = "Nedokazal jsi uhodnout cislo. Budes nasledne navracen do menu"
+                msg = "Nedokázal jsi uhodnout číslo. Budeš následně navrácen do menu"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
                 self.rooms[self.room_list_screen.menu_widget.currentItem().text()]["OUTPUT"] = f"{current_text}\n{msg}"
                 QCoreApplication.processEvents()
                 self.room_list_screen.menu_widget.takeItem(self.room_list_screen.menu_widget.currentRow())
                 time.sleep(5)
-                self.RoomMove5()
+                self.RoomMove_GameFieldToMainMenu()
             case "NaN":
                 msg = f"{guessed_number} neni cislo"
                 self.GFLayout.text_widget.setText(f"{current_text}\n{msg}")
@@ -507,37 +574,54 @@ class Widget(QWidget):
     def on_selected(self, item):
         room_name = item.text()
         room_id = self.rooms[room_name]["ID"]
+        response = requests.get(f"http://localhost:8081/logs?room_id={room_id}")
+        if response.status_code == 200:
+            print("Záznamy úspěšně načteny.")
+            data = response.json()
+            self.rooms[room_name]["GUESSLOG"] = []
+            for i in data:
+                self.rooms[room_name]["GUESSLOG"].append(str(i["guess"]))
+        else:
+            print(f"Chyba při načítání záznamů:", response.text)
+            self.rooms[room_name]["GUESSLOG"] = []
+
         self.GFLayout.text_widget.setText(self.rooms[room_name]["OUTPUT"])
         self.selected_room = room_id
         self.selected_room_name = room_name
-        #self.main_widget.setVisible(True)
-        self.RoomMove6()
+        self.RoomMove_RoomListToGameField()
 
     def start(self):
         self.StartMenu.setVisible(False)
         self.gentext.setVisible(True)
         
-    def RoomMove1(self):
+    def RoomMove_WelcomeScreenToMainMenu(self):
         self.switch_screen(self.WSWidget, self.MMWidget)
-    def RoomMove2(self):
+    def RoomMove_MainMenuToRoomList(self):
         self.switch_screen(self.MMWidget, self.RLWidget)
-    def RoomMove3(self):
-        self.switch_screen(self.MMWidget, self.GFWidget)
-    def RoomMove4(self):
+    #def RoomMove3(self):
+    #    self.switch_screen(self.MMWidget, self.GFWidget)
+    def RoomMove_RoomListToMainMenu(self):
         self.switch_screen(self.RLWidget, self.MMWidget)
-    def RoomMove5(self):
+    def RoomMove_GameFieldToMainMenu(self):
         self.switch_screen(self.GFWidget, self.MMWidget)
-    def RoomMove6(self):
+    def RoomMove_RoomListToGameField(self):
         self.switch_screen(self.RLWidget, self.GFWidget)
-    def RoomMove7(self):
+    def RoomMove_RoomListToNumberRange(self):
         self.switch_screen(self.RLWidget, self.NRWidget)
-    def RoomMove8(self):
+    def RoomMove_NumberRangeToRoomList(self):
         self.switch_screen(self.NRWidget, self.RLWidget)
-    def RoomMove9(self):
+    def RoomMove_MainMenuToHighscore(self):
         self.HSLayout.update_table()
         self.switch_screen(self.MMWidget, self.HSWidget)
-    def RoomMove10(self):
+    def RoomMove_HighscoreToMainMenu(self):
         self.switch_screen(self.HSWidget, self.MMWidget)
+    def RoomMove_LoginToWelcomeScreen(self):
+        self.switch_screen(self.LSWidget, self.WSWidget)
+    def RoomMove_WelcomeScreenToLogin(self):
+        self.LSLayout.EmailCode.hide()
+        self.LSLayout.Email.setText("")
+        self.LSLayout.EmailCode.setText("")
+        self.switch_screen(self.WSWidget, self.LSWidget)
 
 if __name__ == "__main__":
     app = QApplication()
