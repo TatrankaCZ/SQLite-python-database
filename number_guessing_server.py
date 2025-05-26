@@ -19,7 +19,6 @@ async def on_startup(app):
     await app.db.connect()
     
 async def on_cleanup(app):
-
     await app.db.disconnect()
 
 
@@ -30,16 +29,30 @@ async def create_room(request):  # pokud je vyzadovan callback argument (puvodne
     max_ = int(post_data["max"])
 
     hadane_cislo = random.randrange(min_, max_)
-    # TODO - rozsah hodnot bude endpoint prijimat v POST datech [HOTOVO]
 
     room = await request.app.db.room.create({
         'guess_number': hadane_cislo,
         'score': 10,
         'min_number': min_,
         'max_number': max_,
-        'completed': False
+        'completed': False,
     })
     return web.json_response(text=str(room.id), status=201)
+
+async def login(request):
+    data = await request.json()
+    email = data.get("email")
+    code = data.get("code")
+
+    if not email:
+        return web.HTTPBadRequest(reason="Missing 'email'")
+    if not code:
+        code = random.randint(1000, 9999)
+        print(code)
+        return web.json_response(text="Kód pro přihlášení zaslán na e-mail.", status=200)
+    return web.json_response(text="Přihlášení úspěšné.", status=200)
+
+
 
 
 async def list_rooms(request):
@@ -55,9 +68,32 @@ async def list_rooms(request):
     # TODO na klientu osetri chyby serveru
     return web.json_response(out)
 
+async def getGuesses(request):
+    params = request.rel_url.query
+    print("Parametry:", params)
+    if "room_id" not in params:
+        return web.HTTPBadRequest(reason="Missing 'room_id'")
+    try:
+        room_id = int(params["room_id"])
+    except ValueError:
+        return web.HTTPBadRequest(reason="room_id must be an integer")
+    
+    guesses = await request.app.db.guesslog.find_many(where={"roomId": room_id})
+    out = []
+    for guess in guesses:
+        out.append({
+            "id": guess.id,
+            "guess": guess.guess,
+            "result": guess.result,
+            "roomId": guess.roomId
+        })
+    return web.json_response(out)
+
+
 
 async def guess_number(request):
     params = request.rel_url.query
+    print("Parametry:", params)
     if "number" not in params:
         return web.HTTPBadRequest(reason="Missing 'number'")
     if "room_id" not in params:
@@ -74,10 +110,12 @@ async def guess_number(request):
         return web.HTTPBadRequest(reason="number must be positive")
     room = await request.app.db.room.find_unique(where={"id": int(room_id)})
 
+
     answer = ""
     try:
         if int(number) == room.guess_number:
             answer = "found"
+            room.completed = True
 
         elif room.score <= 1:
             answer = "lost"
@@ -97,10 +135,17 @@ async def guess_number(request):
     except:
         answer = "NaN"
 
+
+    await request.app.db.guesslog.create({
+        "guess": number,
+        "result": answer,
+        "roomId": room_id
+    })
+
     out = {
         "status": answer,
     }
-    await request.app.db.room.update(where={"id": room_id}, data={"score": room.score, "completed": True})
+    await request.app.db.room.update(where={"id": room_id}, data={"score": room.score, "completed": room.completed})
 
 
     return web.json_response(out)
@@ -109,13 +154,13 @@ async def guess_number(request):
 def create_app():
     app = web.Application()
     app.add_routes([
-        # TODO zmenove requesty se provadeji pomoci metody POST, popr. pro update zaznamu pres PUT a PATCH (hotovo?)
-        # web.post("/create", create_room)
-        #   https://cs.wikipedia.org/wiki/Representational_State_Transfer#:~:text=distribuuje%20v%20RPC.-,Vlastnosti,-metod%5Beditovat
-        web.post('/create', create_room), # zde nema byt GET (hotovo)
+        #https://cs.wikipedia.org/wiki/Representational_State_Transfer#:~:text=distribuuje%20v%20RPC.-,Vlastnosti,-metod%5Beditovat
+        web.post('/create', create_room), 
         web.post("/rooms", create_room),
         web.get("/rooms", list_rooms),
-        web.get('/guess', guess_number)
+        web.get('/guess', guess_number),
+        web.get('/logs', getGuesses),
+        web.post('/login', login)
     ])
     return app
 
