@@ -1,6 +1,8 @@
 # Server
 from calendar import c
+import hashlib
 import os
+import requests
 
 from client import Prisma
 from dotenv import load_dotenv
@@ -10,7 +12,7 @@ from urllib.parse import parse_qs
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
 
-
+EMAIL_ENCRYPT_PASSWORD = "1ad165188847264634ac1d2f3f1519418e6ad689"
 
 
 async def on_startup(app):
@@ -39,6 +41,18 @@ async def create_room(request):  # pokud je vyzadovan callback argument (puvodne
     })
     return web.json_response(text=str(room.id), status=201)
 
+def send_simple_message(email, code):
+    res = requests.post(
+        "https://api.mailgun.net/v3/sandbox0e68097b9ede45b890b4acbd86886e01.mailgun.org/messages",
+        auth=("api", os.getenv('API_KEY', 'API_KEY')),
+        data={"from": "Mailgun Sandbox <postmaster@sandbox0e68097b9ede45b890b4acbd86886e01.mailgun.org>",
+              "to": email,
+              "subject": "Auth code from Guessing numbers",
+              "text": f"Hello \n\n your auth code is: {code}"})
+
+    res.raise_for_status()
+    return res
+
 async def login(request):
     data = await request.json()
     email = data.get("email")
@@ -48,8 +62,17 @@ async def login(request):
         return web.HTTPBadRequest(reason="Missing 'email'")
     if not code:
         code = random.randint(1000, 9999)
-        print(code)
+        send_simple_message(email, code)
         return web.json_response(text="Kód pro přihlášení zaslán na e-mail.", status=200)
+
+    # overis kod
+    # pokud je spravny, tak do souboru zapises
+    hash = hashlib.md5(email.encode("ascii") + EMAIL_ENCRYPT_PASSWORD.encode("ascii")).hexdigest()
+    print(hash)
+    # email a hash zapises do souboru:
+    # {email}:{hash}
+
+
     return web.json_response(text="Přihlášení úspěšné.", status=200)
 
 
@@ -77,7 +100,7 @@ async def getGuesses(request):
         room_id = int(params["room_id"])
     except ValueError:
         return web.HTTPBadRequest(reason="room_id must be an integer")
-    
+
     guesses = await request.app.db.guesslog.find_many(where={"roomId": room_id})
     out = []
     for guess in guesses:
@@ -121,12 +144,12 @@ async def guess_number(request):
             answer = "lost"
             room.completed = True
             room.score = 0
-            
+
         elif int(number) > room.guess_number:
             answer = "bigger"
             if room.score > 0:
                 room.score -= 1
-            
+
         elif int(number) < room.guess_number:
             answer = "lesser"
             if room.score > 0:
@@ -155,7 +178,7 @@ def create_app():
     app = web.Application()
     app.add_routes([
         #https://cs.wikipedia.org/wiki/Representational_State_Transfer#:~:text=distribuuje%20v%20RPC.-,Vlastnosti,-metod%5Beditovat
-        web.post('/create', create_room), 
+        web.post('/create', create_room),
         web.post("/rooms", create_room),
         web.get("/rooms", list_rooms),
         web.get('/guess', guess_number),
