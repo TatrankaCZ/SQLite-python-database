@@ -47,33 +47,40 @@ def send_simple_message(email, code):
         auth=("api", os.getenv('API_KEY', 'API_KEY')),
         data={"from": "Mailgun Sandbox <postmaster@sandbox0e68097b9ede45b890b4acbd86886e01.mailgun.org>",
               "to": email,
-              "subject": "Auth code from Guessing numbers",
+              "subject": "Auth code from Number Guessing",
               "text": f"Hello \n\n your auth code is: {code}"})
 
     res.raise_for_status()
     return res
 
+genCode = None
+
 async def login(request):
     data = await request.json()
     email = data.get("email")
     code = data.get("code")
+    global genCode
 
     if not email:
         return web.HTTPBadRequest(reason="Missing 'email'")
     if not code:
-        code = random.randint(1000, 9999)
-        send_simple_message(email, code)
-        return web.json_response(text="Kód pro přihlášení zaslán na e-mail.", status=200)
+        genCode = random.randint(1000, 9999)
+        send_simple_message(email, genCode)
+        return web.json_response(text="Kód pro přihlášení zaslán na e-mail.", status=202)
+    if code == str(genCode):
+        hashKey = hashlib.md5(email.encode("ascii") + EMAIL_ENCRYPT_PASSWORD.encode("ascii")).hexdigest()
+        userExist = False
+        with open("./hash.txt", "r") as file:
+            existing_hashes = file.readlines()
+            if f"{email}:{hashKey}\n" in existing_hashes:
+                userExist = True
+        if not userExist:
+            with open("./hash.txt", "a") as file:
+                file.write(f"{email}:{hashKey}\n")
+            print(hashKey)
+        return web.json_response({"hashKey": hashKey, "text": "Přihlášení úspěšné."}, status=200)
 
-    # overis kod
-    # pokud je spravny, tak do souboru zapises
-    hash = hashlib.md5(email.encode("ascii") + EMAIL_ENCRYPT_PASSWORD.encode("ascii")).hexdigest()
-    print(hash)
-    # email a hash zapises do souboru:
-    # {email}:{hash}
-
-
-    return web.json_response(text="Přihlášení úspěšné.", status=200)
+    return web.json_response(text="Přihlášení neúspěšné.", status=401)
 
 
 
@@ -189,7 +196,7 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
+    load_dotenv(".env")
     app.on_startup.append(on_startup)
     web.run_app(app, port=8081)
-    load_dotenv(".env")
     print("Server stopped.")
