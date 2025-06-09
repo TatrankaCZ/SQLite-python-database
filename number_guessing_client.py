@@ -4,6 +4,7 @@
 import code
 from ctypes import alignment
 import sys
+import os
 from PySide6.QtCore import QRect, Qt, Slot, QCoreApplication, QThread, Signal, QObject, QTimer
 from PySide6.QtGui import QFont, QPen, QIntValidator
 from PySide6.QtWidgets import QStackedWidget, QApplication, QGridLayout, QLabel, QLayout, QTableWidget, QWidget, QListWidget, QListWidgetItem, \
@@ -74,16 +75,12 @@ class WelcomeScreen(QHBoxLayout):
 
         welcome = QLabel("Vítej!", alignment=Qt.AlignCenter)
         welcome.setFont(welcome_font)
-        self.welcome_button = QPushButton("Začít", font=QFont("calibri", 15))
-        self.welcome_button.setMinimumSize(150, 50)
-        self.welcome_button.clicked.connect(app.RoomMove_WelcomeScreenToMainMenu)
 
         self.login_button = QPushButton("Přihlásit se", font=QFont("calibri", 15))
         self.login_button.setMinimumSize(150, 50)
         self.login_button.clicked.connect(app.RoomMove_WelcomeScreenToLogin)
 
         start_layout.addWidget(welcome)
-        start_layout.addWidget(self.welcome_button)
         start_layout.addWidget(self.login_button)
         start_layout.addWidget(spacer)
 
@@ -121,6 +118,11 @@ class LoginScreen(QVBoxLayout):
         self.EmailCode.setPlaceholderText("Zadejte kód z e-mailu")
         self.EmailCode.hide()
 
+        self.emailInfoText = QLabel("")
+        self.emailInfoText.setStyleSheet("color: green;")
+        self.emailInfoText.setFont(QFont("calibri", 14))
+        self.emailInfoText.setAlignment(Qt.AlignCenter)
+
         self.Confirm = QPushButton("Potvrdit", font=QFont("calibri", 15))
         self.Confirm.setMinimumSize(150, 30)
         self.Confirm.clicked.connect(self.OnEmailConfirm)
@@ -134,6 +136,7 @@ class LoginScreen(QVBoxLayout):
         self.addWidget(self.EmailCode)
         self.addWidget(self.Confirm)
         self.addWidget(self.Back)
+        self.addWidget(self.emailInfoText)
         self.addWidget(spacer)
 
     def OnEmailConfirm(self):
@@ -144,9 +147,17 @@ class LoginScreen(QVBoxLayout):
             return
         try:
             response = requests.post("http://localhost:8081/login", json={"email": email, "code": code})
-            if response.status_code == 200:
+            self.emailInfoText.setText(response.text)
+            if response.status_code == 202:
                 print("E-mail odeslán.")
                 self.EmailCode.show()
+            elif response.status_code == 200:
+                data = response.json()
+                with open ("./session.txt", "w") as file:
+                    file.write(f"{email}:{data['hashKey']}")
+                self.emailInfoText.setText("")
+                self.emailInfoText.setText("Přihlášení úspěšné.")
+                self.app.RoomMove_LoginToMainMenu()
             else:
                 print("Chyba při odesílání e-mailu:", response.text)
         except Exception as e:
@@ -596,6 +607,13 @@ class Widget(QWidget):
         
     def RoomMove_WelcomeScreenToMainMenu(self):
         self.switch_screen(self.WSWidget, self.MMWidget)
+    def RoomMove_LoginToMainMenu(self):
+        QCoreApplication.processEvents()
+        time.sleep(2)
+        self.LSLayout.EmailCode.hide()
+        self.LSLayout.Email.setText("")
+        self.LSLayout.EmailCode.setText("")
+        self.switch_screen(self.LSWidget, self.MMWidget)
     def RoomMove_MainMenuToRoomList(self):
         self.switch_screen(self.MMWidget, self.RLWidget)
     #def RoomMove3(self):
@@ -618,10 +636,13 @@ class Widget(QWidget):
     def RoomMove_LoginToWelcomeScreen(self):
         self.switch_screen(self.LSWidget, self.WSWidget)
     def RoomMove_WelcomeScreenToLogin(self):
-        self.LSLayout.EmailCode.hide()
-        self.LSLayout.Email.setText("")
-        self.LSLayout.EmailCode.setText("")
-        self.switch_screen(self.WSWidget, self.LSWidget)
+        if os.path.exists("./session.txt"):
+            self.RoomMove_WelcomeScreenToMainMenu()
+        else:
+            self.LSLayout.EmailCode.hide()
+            self.LSLayout.Email.setText("")
+            self.LSLayout.EmailCode.setText("")
+            self.switch_screen(self.WSWidget, self.LSWidget)
 
 if __name__ == "__main__":
     app = QApplication()
