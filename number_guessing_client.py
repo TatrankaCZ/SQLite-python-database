@@ -491,6 +491,7 @@ class Widget(QWidget):
 
         self.LSLayout = LoginScreen(self)
 
+
         self.LSWidget = QWidget()
         self.LSWidget.setLayout(self.LSLayout)
         self.LSWidget.setAutoFillBackground(True)
@@ -506,6 +507,25 @@ class Widget(QWidget):
         self.MainLayout.addWidget(self.LSWidget)
 
         self.setLayout(self.MainLayout)
+
+        if os.path.exists("./session.txt"):
+            fd = open("./session.txt", "r")
+            credentials = fd.read()
+            fd.close()
+
+            # email:hash
+            email, hash = credentials.split(":")
+
+            response = requests.post("http://localhost:8081/validate-session", json={"email": email, "hash": hash})
+            try:
+                response.raise_for_status()
+            except:
+                # TODO zobraz login screenu
+                pass
+
+            self.LSLayout.hide()
+        else:
+            self.RoomMove_WelcomeScreenToMainMenu()
 
     def switch_screen(self, before, to):
         before.hide()

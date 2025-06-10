@@ -1,5 +1,4 @@
 # Server
-from calendar import c
 import hashlib
 import os
 import requests
@@ -8,7 +7,6 @@ from client import Prisma
 from dotenv import load_dotenv
 
 import random
-from urllib.parse import parse_qs
 # https://docs.aiohttp.org/en/stable/
 from aiohttp import web
 
@@ -17,7 +15,6 @@ EMAIL_ENCRYPT_PASSWORD = "1ad165188847264634ac1d2f3f1519418e6ad689"
 
 async def on_startup(app):
     app.db = Prisma()
-    # db = Prisma()
     await app.db.connect()
     
 async def on_cleanup(app):
@@ -53,6 +50,8 @@ def send_simple_message(email, code):
     res.raise_for_status()
     return res
 
+# TODO vytvor tabulku login, ktera bude obsahovat email a aktivacni kod
+# tim se zbavis genCode
 genCode = None
 
 async def login(request):
@@ -67,18 +66,14 @@ async def login(request):
         genCode = random.randint(1000, 9999)
         send_simple_message(email, genCode)
         return web.json_response(text="Kód pro přihlášení zaslán na e-mail.", status=202)
+
+    # TODO - tady vyberes generovany kod z databaze
     if code == str(genCode):
-        hashKey = hashlib.md5(email.encode("ascii") + EMAIL_ENCRYPT_PASSWORD.encode("ascii")).hexdigest()
-        userExist = False
-        with open("./hash.txt", "r") as file:
-            existing_hashes = file.readlines()
-            if f"{email}:{hashKey}\n" in existing_hashes:
-                userExist = True
-        if not userExist:
-            with open("./hash.txt", "a") as file:
-                file.write(f"{email}:{hashKey}\n")
-            print(hashKey)
-        return web.json_response({"hashKey": hashKey, "text": "Přihlášení úspěšné."}, status=200)
+
+        hash_key = generate_hash_from_email(email)
+        # smazat z tabulky login prihlasovaci kod
+
+        return web.json_response({"hashKey": hash_key, "text": "Přihlášení úspěšné."}, status=200)
 
     return web.json_response(text="Přihlášení neúspěšné.", status=401)
 
@@ -98,7 +93,7 @@ async def list_rooms(request):
     # TODO na klientu osetri chyby serveru
     return web.json_response(out)
 
-async def getGuesses(request):
+async def get_guesses(request):
     params = request.rel_url.query
     print("Parametry:", params)
     if "room_id" not in params:
@@ -181,6 +176,20 @@ async def guess_number(request):
     return web.json_response(out)
 
 
+def generate_hash_from_email(email):
+    hash_key = hashlib.md5(email.encode("ascii") + EMAIL_ENCRYPT_PASSWORD.encode("ascii")).hexdigest()
+    return hash_key
+
+async def validate_session(request):
+    params = request.rel_url.query
+    valid_hash = generate_hash_from_email(params.email)
+
+    if valid_hash != params.hash:
+        raise web.HTTPForbidden()
+
+    raise web.HTTPOk()
+
+
 def create_app():
     app = web.Application()
     app.add_routes([
@@ -189,7 +198,8 @@ def create_app():
         web.post("/rooms", create_room),
         web.get("/rooms", list_rooms),
         web.get('/guess', guess_number),
-        web.get('/logs', getGuesses),
+        web.get('/logs', get_guesses),
+        web.get('/validate-session', validate_session),
         web.post('/login', login)
     ])
     return app
