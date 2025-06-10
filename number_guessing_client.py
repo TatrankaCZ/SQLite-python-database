@@ -16,6 +16,8 @@ import json
 import requests
 from bs4 import BeautifulSoup
 
+API_URL = os.getenv('API_URL', 'http://localhost:8081')
+
 darkStyleSheet = """
     QWidget {
         background-color: #121f26;
@@ -146,7 +148,7 @@ class LoginScreen(QVBoxLayout):
             print("Zadejte e-mail.")
             return
         try:
-            response = requests.post("http://localhost:8081/login", json={"email": email, "code": code})
+            response = requests.post(f"{API_URL}/login", json={"email": email, "code": code})
             self.emailInfoText.setText(response.text)
             if response.status_code == 202:
                 print("E-mail odeslán.")
