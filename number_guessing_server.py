@@ -50,28 +50,32 @@ def send_simple_message(email, code):
     res.raise_for_status()
     return res
 
-# TODO vytvor tabulku login, ktera bude obsahovat email a aktivacni kod
-# tim se zbavis genCode
-genCode = None
 
 async def login(request):
     data = await request.json()
     email = data.get("email")
     code = data.get("code")
-    global genCode
+
 
     if not email:
         return web.HTTPBadRequest(reason="Missing 'email'")
     if not code:
         genCode = random.randint(1000, 9999)
+        
+        await request.app.db.login.create({
+        "email": email,
+        "code": str(genCode)
+       })
+
         send_simple_message(email, genCode)
+
         return web.json_response(text="Kód pro přihlášení zaslán na e-mail.", status=202)
 
-    # TODO - tady vyberes generovany kod z databaze
-    if code == str(genCode):
-
+    login = await request.app.db.login.find_unique(where={"email": email})
+    if code == login.code:
         hash_key = generate_hash_from_email(email)
-        # smazat z tabulky login prihlasovaci kod
+
+        await request.app.db.login.delete(where={"email": email})
 
         return web.json_response({"hashKey": hash_key, "text": "Přihlášení úspěšné."}, status=200)
 
@@ -181,10 +185,10 @@ def generate_hash_from_email(email):
     return hash_key
 
 async def validate_session(request):
-    params = request.rel_url.query
-    valid_hash = generate_hash_from_email(params.email)
+    params = await request.json()
+    valid_hash = generate_hash_from_email(params["email"])
 
-    if valid_hash != params.hash:
+    if valid_hash != params["hash"]:
         raise web.HTTPForbidden()
 
     raise web.HTTPOk()
@@ -199,7 +203,7 @@ def create_app():
         web.get("/rooms", list_rooms),
         web.get('/guess', guess_number),
         web.get('/logs', get_guesses),
-        web.get('/validate-session', validate_session),
+        web.post('/validate-session', validate_session),
         web.post('/login', login)
     ])
     return app
