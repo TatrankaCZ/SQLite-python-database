@@ -9,7 +9,7 @@ from PySide6.QtCore import QRect, Qt, Slot, QCoreApplication, QThread, Signal, Q
 from PySide6.QtGui import QFont, QPen, QIntValidator
 from PySide6.QtWidgets import QStackedWidget, QApplication, QGridLayout, QLabel, QLayout, QTableWidget, QWidget, QListWidget, QListWidgetItem, \
     QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGraphicsScene, QMainWindow, QTableWidgetItem, QSizePolicy, QHeaderView
-
+from aiohttp import ClientResponseError
 import time
 import json
 
@@ -235,10 +235,8 @@ class NumberRangeSelect(QVBoxLayout):
         self.minNumber.setValidator(QIntValidator(1, 100))
         self.minNumber.setPlaceholderText(str(Widget.DEFAULT_MIN))
 
-        # TODO - add validator [HOTOVO? Pat a Mat řešení]
         self.maxNumberText = QLabel("Maximální číslo", alignment=Qt.AlignCenter, font=QFont("calibri", 25))
         self.maxNumber = QLineEdit(font=QFont("calibri", 20))
-        #self.maxNumber.setValidator(QIntValidator(self.minNumber + 1, 101))
         self.maxNumber.setPlaceholderText(str(Widget.DEFAULT_MAX))
 
         self.maxNumberError = QLabel("")
@@ -516,18 +514,17 @@ class Widget(QWidget):
             fd.close()
 
             # email:hash
-            email, hash = credentials.split(":")
+            email, hash_key = credentials.split(":")
 
-            response = requests.post("http://localhost:8081/validate-session", json={"email": email, "hash": hash})
+            response = requests.post("http://localhost:8081/validate-session", json={"email": email, "hash": hash_key})
             try:
                 response.raise_for_status()
-            except:
-                # TODO zobraz login screenu
+            except requests.exceptions.HTTPError:
+                self.RoomMove_WelcomeScreenToLogin()
                 pass
 
-            self.LSLayout.hide()
-        else:
-            self.RoomMove_WelcomeScreenToMainMenu()
+            else:
+                self.RoomMove_WelcomeScreenToMainMenu()
 
     def switch_screen(self, before, to):
         before.hide()
@@ -658,13 +655,10 @@ class Widget(QWidget):
     def RoomMove_LoginToWelcomeScreen(self):
         self.switch_screen(self.LSWidget, self.WSWidget)
     def RoomMove_WelcomeScreenToLogin(self):
-        if os.path.exists("./session.txt"):
-            self.RoomMove_WelcomeScreenToMainMenu()
-        else:
-            self.LSLayout.EmailCode.hide()
-            self.LSLayout.Email.setText("")
-            self.LSLayout.EmailCode.setText("")
-            self.switch_screen(self.WSWidget, self.LSWidget)
+        self.LSLayout.EmailCode.hide()
+        self.LSLayout.Email.setText("")
+        self.LSLayout.EmailCode.setText("")
+        self.switch_screen(self.WSWidget, self.LSWidget)
 
 if __name__ == "__main__":
     app = QApplication()
